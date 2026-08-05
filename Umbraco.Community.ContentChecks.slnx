@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Umbraco.Community.ContentChecks.Core/Umbraco.Community.ContentChecks.Core.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Umbraco.Test.ContentChecks.Integration/Umbraco.Test.ContentChecks.Integration.csproj" />
+    <Project Path="tests/Umbraco.Test.ContentChecks.Unit/Umbraco.Test.ContentChecks.Unit.csproj" />
+  </Folder>
+</Solution>
