@@ -1,6 +1,6 @@
 # Umbraco.Community.ContentChecks — Overview
 
-**Status:** Draft, pre-build. **This is the `v18/dev` branch** (the default branch) — targets Umbraco CMS v18 only; v17 is maintained independently on the sibling `v17/dev` branch, see §1's CMS floor & branch model row. Phase 0 is complete on this branch. Phases 1–2 are actionable; Phases 3+ need re-planning once the contract is real.
+**Status:** Draft, pre-build. **This is the `v18/dev` branch** (the default branch) — targets Umbraco CMS v18 only; v17 is maintained independently on the sibling `v17/dev` branch, see §1's CMS floor & branch model row. Phase 0 is complete on this branch. Phase 1 is built (two gaps open, see [Core Contract](core-contract-spec.md) §7); Phase 2 is actionable now that the contract it builds on is real, not just designed. Phases 3+ still need re-planning once Phase 2 is real too.
 **Owner:** Matt Brailsford
 
 This is the mainline document — vision, naming, cross-cutting decisions, and the roadmap linking out to a spec per feature area. It doesn't duplicate the detail in those specs; it's the map, not the territory.
@@ -77,7 +77,7 @@ These findings came from an adversarial interrogation of the source spec's Conte
 | E | Non-interactive publish paths (scheduled, bulk, descendants, Deploy) | [Triggers](triggers-spec.md) — explicit per-trigger opt-in; never block non-interactive publishes in v1 |
 | F | Single-item scope is a one-way door | [Core Contract](core-contract-spec.md) — no `Scope` enum needed; only item-level exists for v1, and Branch/Set arrive later as a new opt-in interface, not a retrofit — enum/interface additions are non-breaking, so nothing is actually foreclosed |
 | G | Variants unaddressed | [Core Contract](core-contract-spec.md) — culture + segment on context and on every result target |
-| H | Verdict flicker; no caching or versioning | [Core Contract](core-contract-spec.md) — cache keyed on the content item's own version id (`int? VersionId`) where one exists (falling back to a value hash for unsaved/Draft Set content) + check alias + check-assembly fingerprint (automatic, no manual version) + resolved-config hash |
+| H | Verdict flicker; no caching or versioning | [Core Contract](core-contract-spec.md) — cache keyed on the content item's own version id (`int? VersionId`) + check alias + check-assembly fingerprint (automatic, no manual version) + resolved-config hash; skipped entirely for unsaved/Draft Set content (no `VersionId`, and no generic way to hash an opaque snapshot's values instead) |
 | I | Feedback has no address to point at | [Core Contract](core-contract-spec.md) — `ContentCheckTarget` on every result |
 | J | Non-goal boundary muddled | §2 above |
 | K | Rubric authoring untested, no shipped defaults | [AI Integration](ai-integration-spec.md) (default rubrics), [Management API & UI](management-api-ui-spec.md) (backtest) |
@@ -115,7 +115,7 @@ Umbraco.Community.ContentChecks/
 | Phase | Spec | Status |
 |---|---|---|
 | 0 — Bootstrap | (below) | **Complete on this branch** |
-| 1 — Contract, runner, two proving checks | [Core Contract](core-contract-spec.md) | Contract finalized; not yet built |
+| 1 — Contract, runner, two proving checks | [Core Contract](core-contract-spec.md) | Built and passing its own tests; two gaps open (see that spec's §7) |
 | 2 — Check policies & configuration | [Policy Resolution](policy-resolution-spec.md) | Design settled; not yet built |
 | 3 — Management API & backoffice UI | [Management API & UI](management-api-ui-spec.md) | Sketch only |
 | 4 — Triggers | [Triggers](triggers-spec.md) | Sketch only |
