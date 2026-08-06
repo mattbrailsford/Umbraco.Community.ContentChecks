@@ -4,6 +4,9 @@
     <IsPackable>false</IsPackable>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
     <NoWarn>$(NoWarn);CS1591;SA0001</NoWarn>
+    <!-- See Umbraco.Test.ContentChecks.Unit.csproj: "Umbraco.Test..." as a default namespace
+         collides with NUnit's [Test] attribute at the language level (CS0616). -->
+    <RootNamespace>Umbraco.Community.ContentChecks.Tests.Integration</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>
