@@ -11,6 +11,7 @@ public interface IContentCheckConfigSchemaBuilder
     /// </summary>
     /// <typeparam name="TConfig">The configuration type to build a schema for.</typeparam>
     /// <param name="checkAlias">The alias of the check the schema belongs to.</param>
+    /// <returns>The built schema.</returns>
     ContentCheckConfigSchema BuildForType<TConfig>(string checkAlias)
         where TConfig : class;
 
@@ -19,5 +20,6 @@ public interface IContentCheckConfigSchemaBuilder
     /// </summary>
     /// <param name="configType">The configuration type to build a schema for.</param>
     /// <param name="checkAlias">The alias of the check the schema belongs to.</param>
+    /// <returns>The built schema.</returns>
     ContentCheckConfigSchema BuildForType(Type configType, string checkAlias);
 }

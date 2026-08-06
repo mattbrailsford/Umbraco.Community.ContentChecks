@@ -79,15 +79,29 @@ internal sealed class ContentCheckConfigSchemaBuilder : IContentCheckConfigSchem
         var underlyingType = Nullable.GetUnderlyingType(type) ?? type;
 
         if (underlyingType == typeof(string))
+        {
             return "Umb.PropertyEditorUi.TextBox";
+        }
+
         if (underlyingType == typeof(int) || underlyingType == typeof(long))
+        {
             return "Umb.PropertyEditorUi.Integer";
+        }
+
         if (underlyingType == typeof(bool))
+        {
             return "Umb.PropertyEditorUi.Toggle";
+        }
+
         if (underlyingType == typeof(decimal) || underlyingType == typeof(double) || underlyingType == typeof(float))
+        {
             return "Umb.PropertyEditorUi.Decimal";
+        }
+
         if (underlyingType == typeof(DateTime) || underlyingType == typeof(DateTimeOffset))
+        {
             return "Umb.PropertyEditorUi.DatePicker";
+        }
 
         return "Umb.PropertyEditorUi.TextBox";
     }

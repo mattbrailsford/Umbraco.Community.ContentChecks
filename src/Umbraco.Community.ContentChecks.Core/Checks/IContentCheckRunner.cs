@@ -13,5 +13,6 @@ public interface IContentCheckRunner
     /// </summary>
     /// <param name="request">The rules to run and the content to run them against.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The resulting report.</returns>
     Task<ContentCheckReport> RunAsync(ContentCheckRunRequest request, CancellationToken cancellationToken);
 }
