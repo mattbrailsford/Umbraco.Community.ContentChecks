@@ -63,6 +63,19 @@ public class RequiredPropertyCheckTests
         Assert.That(result.Status, Is.EqualTo(ContentCheckStatus.Pass));
     }
 
+    [Test]
+    public async Task EvaluateAsync_NoConfigStored_FallsBackToDefaultConfigInstance()
+    {
+        // No JSON at all -- ContentCheckBase<TConfig> must default to `new RequiredPropertyCheckConfig()`
+        // (PropertyAlias = "") itself, so this exercises that fallback, not just ConfigFor's path.
+        var snapshot = new InMemoryContentCheckSnapshot(Guid.NewGuid(), "page");
+        var context = new ContentCheckContext { Content = snapshot };
+
+        var result = await _check.EvaluateAsync(context, new ContentCheckConfig(), CancellationToken.None);
+
+        Assert.That(result.Status, Is.EqualTo(ContentCheckStatus.NotApplicable));
+    }
+
     private sealed class FakeContentCheckInfrastructure : IContentCheckInfrastructure
     {
         public IContentCheckConfigSchemaBuilder SchemaBuilder { get; } = new ContentCheckConfigSchemaBuilder();

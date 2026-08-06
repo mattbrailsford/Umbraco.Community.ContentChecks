@@ -51,24 +51,22 @@ public sealed class StubRubricCheck : ContentCheckBase<StubRubricCheckConfig>
     }
 
     /// <inheritdoc />
-    public override async Task<ContentCheckResult> EvaluateAsync(
+    protected override async Task<ContentCheckResult> EvaluateAsync(
         ContentCheckContext context,
-        ContentCheckConfig config,
+        StubRubricCheckConfig config,
         CancellationToken cancellationToken)
     {
-        var checkConfig = ResolveConfig(config) ?? new StubRubricCheckConfig();
-
         // Stands in for "an LLM call happened" -- a real judge would call out to an Umbraco.AI
         // profile here instead, which is exactly why this check is Metered + Nondeterministic.
         await Task.Delay(1, cancellationToken);
-        var score = Math.Clamp(checkConfig.Rubric.Length / 100.0, 0, 1);
+        var score = Math.Clamp(config.Rubric.Length / 100.0, 0, 1);
 
         return new ContentCheckResult
         {
-            Status = score >= checkConfig.Threshold ? ContentCheckStatus.Pass : ContentCheckStatus.Fail,
-            Message = $"Stub judge scored {score:0.00} against a threshold of {checkConfig.Threshold:0.00}.",
+            Status = score >= config.Threshold ? ContentCheckStatus.Pass : ContentCheckStatus.Fail,
+            Message = $"Stub judge scored {score:0.00} against a threshold of {config.Threshold:0.00}.",
             Score = score,
-            Threshold = checkConfig.Threshold,
+            Threshold = config.Threshold,
         };
     }
 }

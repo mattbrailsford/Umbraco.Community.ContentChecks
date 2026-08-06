@@ -53,8 +53,10 @@ public class ContentCheckAttribute(string alias, string name) : Attribute
     public ContentCheckKind Kind { get; set; } = ContentCheckKind.Deterministic;           // opt in to Nondeterministic
 }
 
-// What you actually write a check by inheriting — direct port of AIGuardrailEvaluatorBase<TConfig>.
-// Reads [ContentCheck] off the derived type, builds the config schema lazily, exposes ResolveConfig.
+// What you actually write a check by inheriting — direct port of AIGuardrailEvaluatorBase<TConfig>,
+// plus one addition beyond that precedent (see the note below the block): a typed EvaluateAsync
+// overload is what a check actually overrides; the interface-facing one is a concrete proxy that
+// resolves and defaults the config once, so every check stops repeating that step by hand.
 // One constructor only (infrastructure-DI) — no [Obsolete] legacy overload; nothing to be
 // backward-compatible with in a greenfield package.
 public abstract class ContentCheckBase<TConfig> : IContentCheck
@@ -71,8 +73,19 @@ public abstract class ContentCheckBase<TConfig> : IContentCheck
     public ContentCheckConfigSchema? GetConfigSchema() => /* lazy schema */ null;
     protected TConfig? ResolveConfig(ContentCheckConfig config) => /* schema-backed resolve */ default;
 
-    public abstract Task<ContentCheckResult> EvaluateAsync(
-        ContentCheckContext context, ContentCheckConfig config, CancellationToken cancellationToken);
+    // Implements IContentCheck — concrete, not abstract. Resolves the raw config once, falls
+    // back to `new TConfig()` (the same instance the schema's own DefaultValue fields read
+    // from) if none was stored, then hands off to the typed overload below.
+    public Task<ContentCheckResult> EvaluateAsync(
+        ContentCheckContext context, ContentCheckConfig config, CancellationToken cancellationToken)
+        => EvaluateAsync(context, ResolveConfig(config) ?? CreateDefaultConfig(), cancellationToken);
+
+    // What a check actually overrides — an overload, not the interface member itself, so the
+    // compiler only lets `override` land on this one.
+    protected abstract Task<ContentCheckResult> EvaluateAsync(
+        ContentCheckContext context, TConfig config, CancellationToken cancellationToken);
+
+    private static TConfig CreateDefaultConfig() => (TConfig)Activator.CreateInstance(typeof(TConfig))!;
 }
 
 public sealed class ContentCheckContext
@@ -84,12 +97,11 @@ public sealed class ContentCheckContext
     public string? Segment { get; init; }
 }
 
-// Mirrors AIGuardrailConfig exactly — config is its own parameter, not folded into context.
+// Mirrors AIGuardrailConfig's shape, minus its Deserialize<T>() convenience method — see the
+// note below the block for why that method didn't earn its keep here.
 public sealed class ContentCheckConfig
 {
     public JsonElement? Config { get; init; }
-    public T? Deserialize<T>() => Config is { ValueKind: not JsonValueKind.Undefined }
-        ? Config.Value.Deserialize<T>() : default;
 }
 
 // finding G3 — modelled on Umbraco's real HealthCheckStatus.ResultType, extended with the two
@@ -142,6 +154,8 @@ public interface IContentCheckSnapshot
 
 **Added after the contract was first marked finalized, before any code was written against it — caught by checking real Umbraco source rather than assumed.** §5's cache design says "the content item's own version Guid" throughout; reflecting over the actual `Umbraco.Cms.Core.Models.Content` class shows `VersionId` (and `PublishedVersionId`) are `int`, not `Guid` — there is no Guid-typed version identifier anywhere on `IContent`. `IContentCheckSnapshot` needed a way to expose that identity regardless, so `VersionId` (nullable `int`) was added directly to the interface — a real, small addition to an already-"finalized" contract, made deliberately rather than silently, exactly the discipline the "one-way door" framing above asks for. Every occurrence of "version Guid" elsewhere in this doc and in the [Overview](overview.md) findings table means this `int? VersionId`, not a Guid — read literally, "Guid" was simply wrong.
 
+**Second addition after Phase 1 was built, caught by noticing repetition rather than a wrong assumption: `ContentCheckConfig.Deserialize<T>()` and the every-check boilerplate it left behind.** `AIGuardrailConfig.Deserialize<T>()` was ported verbatim as a convenience method — but nothing ever called it. Every real check goes through `ContentCheckBase<TConfig>.ResolveConfig`, never the raw config's own `Deserialize<T>()`; the method only earns its keep for a hand-rolled `IContentCheck` implementer, and `IContentCheck`'s own docs already say nobody does that. Cut. Its removal exposed a second, more valuable thing: every proving check's `EvaluateAsync` opened with the identical line `ResolveConfig(config) ?? new XyzConfig()` — resolve the raw config, default it if absent. That line belongs on the base class, not repeated in every check. `ContentCheckBase<TConfig>.EvaluateAsync(ContentCheckContext, ContentCheckConfig, ...)` is no longer abstract; it's a concrete proxy that resolves and defaults once, then calls a new `protected abstract EvaluateAsync(ContentCheckContext, TConfig, ...)` overload — an overload, not an override, so the compiler itself only lets a check's `override` keyword land on the correctly-typed one. The default instance comes from `Activator.CreateInstance(typeof(TConfig))`, deliberately not a `where TConfig : new()` constraint — §3's config schema builder already creates a default `TConfig` via reflection for the exact same reason (reading each field's `DefaultValue` from the type's own property initializers), and adding a formal constraint here would contradict the reasoning already recorded for why `ResolveConfig` avoids one. An unconfigured rule now behaves exactly as its own schema already advertises, not a separately-invented fallback.
+
 **Class, not record, everywhere in this contract.** `AIGuardrailResult`/`AIGuardrailRule`/`AIGuardrail` are all `sealed class` with `{ get; init; }` (some `required`), never positional records. That's deliberate on Umbraco.AI's side, not incidental: third-party developers *construct* these types (a check returns `ContentCheckResult`, an evaluator returns `AIGuardrailResult`), and a positional record's constructor is a breaking-change trap — adding a new parameter later breaks every existing call site. Init-property classes let a new optional property get added later for free. Followed exactly here.
 
 **`Cost` and `Kind` live directly on the interface, not wrapped in a `Metadata` object.** Reasoning that interfaces are harder to extend than classes doesn't hold: `IAIEditableModelResolver.ResolveModel(Type, ...)` is a **default interface method** added to a public interface after the fact specifically so old implementers keep compiling — Umbraco.AI's own code proves default interface members are the sanctioned extension path here, not wrapper objects. So both classification properties sit directly on `IContentCheck`, roughly where Guardrails puts the single equivalent `Type` property on `IAIGuardrailEvaluator`, and any future classification property arrives the same way theirs would.
@@ -150,7 +164,7 @@ public interface IContentCheckSnapshot
 
 **`Scope` dropped entirely for v1** (finding F). Pre-declaring `Item`/`Branch`/`Set` to avoid "foreclosing" broader scopes later solves nothing — enum members are additive and non-breaking regardless. The real blocker for Branch/Set was never a missing enum value; it's that a branch-scoped check needs a different method shape entirely (many snapshots in, not one). When that's built, it arrives as a new opt-in interface, same pattern as the Fixable one that got cut. (Open question 5 in the [Overview](overview.md).)
 
-**Config is its own parameter, not folded into `ContentCheckContext.Settings`.** An earlier pass had context carrying `IReadOnlyDictionary<string, object?> Settings` — an untyped bag — alongside the content to check. The real precedent (`EvaluateAsync(string content, history, AIGuardrailConfig config, ct)`) keeps the evaluation subject and the check's configuration as two separate, differently-shaped parameters. `ContentCheckContext` now holds only what's being checked; `ContentCheckConfig` (mirroring `AIGuardrailConfig`) holds the resolved config, typed via `Deserialize<T>()` exactly like the real one.
+**Config is its own parameter, not folded into `ContentCheckContext.Settings`.** An earlier pass had context carrying `IReadOnlyDictionary<string, object?> Settings` — an untyped bag — alongside the content to check. The real precedent (`EvaluateAsync(string content, history, AIGuardrailConfig config, ct)`) keeps the evaluation subject and the check's configuration as two separate, differently-shaped parameters. `ContentCheckContext` now holds only what's being checked; `ContentCheckConfig` (mirroring `AIGuardrailConfig`'s shape) holds the raw config, typed and defaulted via `ContentCheckBase<TConfig>`'s own `EvaluateAsync` proxy (see the note above) rather than a `Deserialize<T>()` method on the config type itself.
 
 **Deviation, kept deliberately: `Alias`, not `Id`.** Umbraco.AI's own convention splits the two — `Id` for a code-registered plugin type (`IAIGuardrailEvaluator.Id`), `Alias` for a DB-persisted user-created entity (`AIGuardrail.Alias`, `AIProfile.Alias`). ContentChecks uses `Alias` for both the code-registered check type and the check-policy record. That's a real, intentional departure from the precedent being mirrored everywhere else in this section — justified because Umbraco.AI's Id/Alias split exists to disambiguate *many* entity kinds across a large product; a small standalone package is clearer with one word for "the name you refer to this by," full stop.
 
@@ -172,7 +186,7 @@ The pattern, ported:
 2. `IContentCheck.ConfigType` returns that type; `GetConfigSchema()` reflects over it once, lazily, exactly like `AIGuardrailEvaluatorBase`'s `Lazy<AIEditableModelSchema?>`.
 3. The Management API exposes the schema per registered check type (see [Management API & UI](management-api-ui-spec.md)).
 4. A generic frontend component renders any schema — either a straight port of `uai-model-editor` or a fresh build against the identical field shape (`Key`, `Label`, `Description`, `EditorUiAlias`, `EditorConfig`, `DefaultValue`, `SortOrder`, `ValidationRules`, `Group` — `IsSensitive` dropped, see §5). Either way, **a new check type ships with zero frontend code.**
-5. The resolved config is stored as JSON (`ContentCheckConfig.Config : JsonElement?`), deserialized through the schema at evaluation time via a `ResolveConfig<TConfig>()` helper on the `ContentCheckBase<TConfig>` base class — same role as `AIGuardrailEvaluatorBase.ResolveConfig`, minus the configuration-variable substitution machinery (§5).
+5. The resolved config is stored as JSON (`ContentCheckConfig.Config : JsonElement?`), deserialized through the schema at evaluation time via a `ResolveConfig<TConfig>()` helper on the `ContentCheckBase<TConfig>` base class — same role as `AIGuardrailEvaluatorBase.ResolveConfig`, minus the configuration-variable substitution machinery (§5). A check author never calls this directly: the base class's `EvaluateAsync` proxy calls it automatically before handing a check its already-typed, already-defaulted config (see §2's note on this).
 
 This is still why `Nondeterministic`/`Metered` check config (see [AI Integration](ai-integration-spec.md) — judge profile alias, rubric text, threshold) needs no bespoke UI: it's just another `TConfig` class.
 
@@ -259,7 +273,8 @@ Reviewed against the real Umbraco.AI code, not against a hypothetical "what woul
 | `ContentCheckMetadata` wrapper | Held `Cost`/`IsDeterministic`/`Scope` | `Cost` and `Kind` sit directly on `IContentCheck`; default interface methods (already Umbraco.AI's own pattern) cover future extension |
 | `ContentCheckScope` enum (`Item`/`Branch`/`Set`) | Pre-declared to avoid "foreclosing" future scopes | Enum/interface additions are non-breaking; Branch/Set will need a new opt-in interface (different method shape) regardless, so pre-declaring the enum value solved nothing |
 | `NotEvaluatedPolicy` on the runner's rule type | On `ResolvedContentCheckRule` | Belongs on the persisted `ContentCheckPolicyRule` ([Policy Resolution](policy-resolution-spec.md)) and the triggers' gating logic, not the runner |
-| `IReadOnlyDictionary<string, object?> Settings` on context | Untyped config bag folded into `ContentCheckContext` | Replaced by a proper `ContentCheckConfig` parameter (mirrors `AIGuardrailConfig`), typed via schema-backed `Deserialize<T>()` |
+| `IReadOnlyDictionary<string, object?> Settings` on context | Untyped config bag folded into `ContentCheckContext` | Replaced by a proper `ContentCheckConfig` parameter (mirrors `AIGuardrailConfig`), resolved to a typed, defaulted `TConfig` via `ContentCheckBase<TConfig>`'s own `EvaluateAsync` proxy |
+| `ContentCheckConfig.Deserialize<T>()` | Ported convenience method, mirroring `AIGuardrailConfig.Deserialize<T>()` | Never called — every real check resolves config through `ContentCheckBase<TConfig>`, and `IContentCheck`'s own docs say nobody implements the raw interface directly, so nothing needs the escape hatch this method existed for |
 | Configuration-variable substitution (`$Key:Path`, `$$` escaping, secret-prefix allow-listing) | Implied by "port the editable-model infra" wholesale | ~130 lines of real complexity in `AIEditableModelResolver` that exists to let provider settings reference `appsettings.json` secrets. No ContentChecks setting is a secret — the AI-judged check references an Umbraco.AI profile *by id*; the profile (in Umbraco.AI, not here) owns the actual credential. Add back only if a future check type genuinely needs one. |
 | `IsSensitive` field flag + masked-editor inference | Ported implicitly with the field/attribute shape | Exists only to support the secret-substitution machinery above, which isn't needed either |
 | `[Obsolete]` `StaticServiceProvider`-based constructor on the base class | N/A — would've been copied by habit | Only exists on `AIGuardrailEvaluatorBase` because its contract was already public before the infrastructure-DI constructor was added. Nothing to be backward-compatible with in a greenfield package. |
@@ -272,7 +287,7 @@ This is the phase that matters. **Do not ship the contract to consumers until bo
 
 - [x] Contract types per §2, in `Core/Checks/`: `IContentCheck`, `ContentCheckAttribute`, `ContentCheckBase<TConfig>`, `ContentCheckCost`, `ContentCheckKind`, `ContentCheckContext`, `ContentCheckConfig`, `ContentCheckStatus`, `ContentCheckResult`, `ContentCheckTarget`, `IContentCheckSnapshot`.
 - [x] Port the config schema infra from Umbraco.AI's `EditableModels` into `Core/Config/` as `ContentCheckConfigSchema`, `IContentCheckConfigSchemaBuilder`, `IContentCheckConfigResolver`, `[ContentCheckField]` (§3) — **trimmed**, not a straight copy: drop configuration-variable substitution (`$Key:Path`, secret-prefix allow-listing) and `IsSensitive` entirely (§6). Just JSON round-trip + DataAnnotations validation via the schema.
-- [x] `ContentCheckAttribute` + `ContentCheckBase<TConfig>` — direct port of `AIGuardrailEvaluatorBase<TConfig>` minus its `[Obsolete]` legacy constructor (nothing to be compatible with yet).
+- [x] `ContentCheckAttribute` + `ContentCheckBase<TConfig>` — direct port of `AIGuardrailEvaluatorBase<TConfig>` minus its `[Obsolete]` legacy constructor (nothing to be compatible with yet). Diverges from that precedent in one deliberate way, added once repetition across the two proving checks made it obvious: `EvaluateAsync` is a concrete proxy resolving/defaulting `TConfig` once, with a `protected abstract` typed overload for checks to actually implement — see §2's note.
 - [x] `IContentCheckSnapshot` + an adapter over `IContent` (`ContentCheckSnapshot`) and a dictionary-backed one for content with no persisted version (`InMemoryContentCheckSnapshot`) — serves both "unsaved editing model" and "test double" roles, since no single concrete Umbraco type represents unsaved editor state generically.
 - [x] `IContentCheckRunner` + ordering, short-circuit, concurrency cap, timing (§4).
 - [x] `ContentCheckReportCompletedNotification`, published by the runner after every `RunAsync` call — see [Notifications](notifications-spec.md) §4.
@@ -280,7 +295,7 @@ This is the phase that matters. **Do not ship the contract to consumers until bo
 - [x] `ContentCheckCollection` / `ContentCheckCollectionBuilder` as `LazyCollectionBuilderBase<,,>` + `IDiscoverable` auto-discovery — **not** `OrderedCollectionBuilder`, which is for middleware pipelines, a different shape of problem.
 - [x] **Proving check A (`Cost.Free` + `Kind.Deterministic`):** required-property check. Config = property alias. Exercises `NotApplicable` (via `HasProperty`), `Fail`/`Pass`, and `Targets`. (Per-culture requirement toggle not built — not needed to prove the contract; add if a real v1 check needs it.)
 - [x] **Proving check B (`Cost.Metered` + `Kind.Nondeterministic`, throwaway):** a stub rubric check with a hand-rolled fake judge that returns a score. **No Umbraco.AI dependency** — proves the contract survives scores and thresholds. Deleted once [AI Integration](ai-integration-spec.md) ships a real one.
-- [x] Unit tests: ordering/short-circuit, cache hit/miss (including the no-`VersionId` skip path), notification publishing, variant addressing (`HasProperty` vs empty value), config schema field/validation inference. **Not yet covered:** `Warning` status, and a check throwing → `NotEvaluated(Error)` — real gaps, not claimed as done.
+- [x] Unit tests: ordering/short-circuit, cache hit/miss (including the no-`VersionId` skip path), notification publishing, variant addressing (`HasProperty` vs empty value), config schema field/validation inference, the base class's default-config fallback when no config is stored. **Not yet covered:** `Warning` status, and a check throwing → `NotEvaluated(Error)` — real gaps, not claimed as done.
 - [ ] Build against a real `IContent` in an integration test, not just `InMemoryContentCheckSnapshot` — `ContentCheckSnapshot` (the real adapter) is written but has no test exercising it yet against an actual Umbraco content item.
 
 **Acceptance:** a test runs a mixed check policy over a real content item and gets a report where the `Metered` check is short-circuited by a failing `Blocking` `Free` check. **Met** — `ContentCheckRunnerTests.RunAsync_BlockingFreeFailure_ShortCircuitsMeteredRules`, against `InMemoryContentCheckSnapshot` rather than a real `IContent` (the gap noted above).
