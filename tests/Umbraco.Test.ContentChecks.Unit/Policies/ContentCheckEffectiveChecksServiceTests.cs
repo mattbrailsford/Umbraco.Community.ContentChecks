@@ -54,16 +54,21 @@ public class ContentCheckEffectiveChecksServiceTests
         Assert.That(effectiveChecks, Has.Count.EqualTo(3));
 
         var direct = effectiveChecks.Single(c => c.Policy.Alias == "direct");
+        Assert.That(direct, Is.InstanceOf<ContentCheckEffectiveCheck.Direct>());
         Assert.That(direct.Provenance, Is.EqualTo(ContentCheckEffectiveCheckProvenance.Direct));
 
         var composed = effectiveChecks.Single(c => c.Policy.Alias == "composed");
-        Assert.That(composed.Provenance, Is.EqualTo(ContentCheckEffectiveCheckProvenance.Composition));
-        Assert.That(composed.ViaContentTypeKey, Is.EqualTo(yKey));
+        Assert.That(composed, Is.InstanceOf<ContentCheckEffectiveCheck.Composition>());
+        var composition = (ContentCheckEffectiveCheck.Composition)composed;
+        Assert.That(composition.Provenance, Is.EqualTo(ContentCheckEffectiveCheckProvenance.Composition));
+        Assert.That(composition.ViaContentTypeKey, Is.EqualTo(yKey));
 
         var cascaded = effectiveChecks.Single(c => c.Policy.Alias == "cascaded");
-        Assert.That(cascaded.Provenance, Is.EqualTo(ContentCheckEffectiveCheckProvenance.Cascading));
-        Assert.That(cascaded.ViaPropertyAlias, Is.EqualTo("content"));
-        Assert.That(cascaded.ViaElementTypeKey, Is.EqualTo(zKey));
+        Assert.That(cascaded, Is.InstanceOf<ContentCheckEffectiveCheck.Cascading>());
+        var cascading = (ContentCheckEffectiveCheck.Cascading)cascaded;
+        Assert.That(cascading.Provenance, Is.EqualTo(ContentCheckEffectiveCheckProvenance.Cascading));
+        Assert.That(cascading.ViaPropertyAlias, Is.EqualTo("content"));
+        Assert.That(cascading.ViaElementTypeKey, Is.EqualTo(zKey));
     }
 
     [Test]

@@ -57,13 +57,8 @@ internal sealed class ContentCheckEffectiveChecksService : IContentCheckEffectiv
         foreach (var policy in directAndComposed)
         {
             results.Add(policy.ContentTypeKey == contentType.Key
-                ? new ContentCheckEffectiveCheck { Policy = policy, Provenance = ContentCheckEffectiveCheckProvenance.Direct }
-                : new ContentCheckEffectiveCheck
-                {
-                    Policy = policy,
-                    Provenance = ContentCheckEffectiveCheckProvenance.Composition,
-                    ViaContentTypeKey = policy.ContentTypeKey,
-                });
+                ? new ContentCheckEffectiveCheck.Direct(policy)
+                : new ContentCheckEffectiveCheck.Composition(policy, viaContentTypeKey: policy.ContentTypeKey));
         }
 
         // Cycle guard is scoped to the current path (root -> ... -> here), not to every element
@@ -109,13 +104,7 @@ internal sealed class ContentCheckEffectiveChecksService : IContentCheckEffectiv
                 var matches = await GetMatchingPoliciesAsync(elementType.Key, elementType.CompositionKeys(), cache, cancellationToken);
                 foreach (var policy in matches)
                 {
-                    results.Add(new ContentCheckEffectiveCheck
-                    {
-                        Policy = policy,
-                        Provenance = ContentCheckEffectiveCheckProvenance.Cascading,
-                        ViaPropertyAlias = propertyType.Alias,
-                        ViaElementTypeKey = elementType.Key,
-                    });
+                    results.Add(new ContentCheckEffectiveCheck.Cascading(policy, viaPropertyAlias: propertyType.Alias, viaElementTypeKey: elementType.Key));
                 }
 
                 var nextVisitedOnPath = new HashSet<Guid>(visitedOnPath) { elementTypeKey };
