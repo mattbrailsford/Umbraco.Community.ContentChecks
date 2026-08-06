@@ -15,7 +15,7 @@ public enum ContentCheckStatus
     /// <summary>
     /// The check found an issue worth flagging, but not blocking.
     /// </summary>
-    Warning,
+    Warn,
 
     /// <summary>
     /// The check found an issue.

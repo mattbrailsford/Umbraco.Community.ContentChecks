@@ -106,7 +106,7 @@ public sealed class ContentCheckConfig
 
 // finding G3 — modelled on Umbraco's real HealthCheckStatus.ResultType, extended with the two
 // states site health doesn't need but content quality does (NotApplicable, NotEvaluated).
-public enum ContentCheckStatus { Pass, Warning, Fail, NotApplicable, NotEvaluated }
+public enum ContentCheckStatus { Pass, Warn, Fail, NotApplicable, NotEvaluated }
 public enum ContentCheckNotEvaluatedReason { ShortCircuited, Error }
 
 public sealed class ContentCheckResult
@@ -295,7 +295,7 @@ This is the phase that matters. **Do not ship the contract to consumers until bo
 - [x] `ContentCheckCollection` / `ContentCheckCollectionBuilder` as `LazyCollectionBuilderBase<,,>` + `IDiscoverable` auto-discovery — **not** `OrderedCollectionBuilder`, which is for middleware pipelines, a different shape of problem.
 - [x] **Proving check A (`Cost.Free` + `Kind.Deterministic`):** required-property check. Config = property alias. Exercises `NotApplicable` (via `HasProperty`), `Fail`/`Pass`, and `Targets`. (Per-culture requirement toggle not built — not needed to prove the contract; add if a real v1 check needs it.)
 - [x] **Proving check B (`Cost.Metered` + `Kind.Nondeterministic`, throwaway):** a stub rubric check with a hand-rolled fake judge that returns a score. **No Umbraco.AI dependency** — proves the contract survives scores and thresholds. Deleted once [AI Integration](ai-integration-spec.md) ships a real one.
-- [x] Unit tests: ordering/short-circuit, cache hit/miss (including the no-`VersionId` skip path), notification publishing, variant addressing (`HasProperty` vs empty value), config schema field/validation inference, the base class's default-config fallback when no config is stored. **Not yet covered:** `Warning` status, and a check throwing → `NotEvaluated(Error)` — real gaps, not claimed as done.
+- [x] Unit tests: ordering/short-circuit, cache hit/miss (including the no-`VersionId` skip path), notification publishing, variant addressing (`HasProperty` vs empty value), config schema field/validation inference, the base class's default-config fallback when no config is stored. **Not yet covered:** `Warn` status, and a check throwing → `NotEvaluated(Error)` — real gaps, not claimed as done.
 - [ ] Build against a real `IContent` in an integration test, not just `InMemoryContentCheckSnapshot` — `ContentCheckSnapshot` (the real adapter) is written but has no test exercising it yet against an actual Umbraco content item.
 
 **Acceptance:** a test runs a mixed check policy over a real content item and gets a report where the `Metered` check is short-circuited by a failing `Blocking` `Free` check. **Met** — `ContentCheckRunnerTests.RunAsync_BlockingFreeFailure_ShortCircuitsMeteredRules`, against `InMemoryContentCheckSnapshot` rather than a real `IContent` (the gap noted above).
