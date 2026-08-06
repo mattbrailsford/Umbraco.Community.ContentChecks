@@ -28,11 +28,13 @@ Umbraco.AI faced this identical question for `AIGuardrail` — a DB-persisted, d
 
 ## 2. What needs building
 
-- `ContentCheckPolicyArtifact` — the serializable representation. Mirrors `AIGuardrailArtifact`'s shape: whatever identifies the policy, plus its `ContentTypeKey`, `StartNodeKey` (if set), and its rules (check alias, config JSON, mode, `NotEvaluated` policy). Both Key fields are dependencies the Connector must declare (§1), not incidental data on the artifact.
+- `ContentCheckPolicyArtifact` — the serializable representation. Mirrors `AIGuardrailArtifact`'s shape: whatever identifies the policy, plus its `ContentTypeKey`, `StartNodeKey` (if set), `ParentFolderKey` (if set), and its rules (check alias, config JSON, mode, `NotEvaluated` policy). All Key fields are dependencies the Connector must declare (§1), not incidental data on the artifact.
+- `ContentCheckPolicyFolderArtifact` — smaller sibling artifact for `ContentCheckPolicyFolder` ([Policy Resolution](policy-resolution-spec.md) §4): its own Key, Name, and `ParentFolderKey` (if nested under another folder) — the same self-reference the policy's own artifact depends on.
 - A Service Connector (mirrors `UmbracoAIGuardrailServiceConnector`) — `GetArtifact`/`Process` (or whatever the actual current Deploy connector interface calls them; verify against real source, don't assume the method names from memory of the pattern alone). Declares dependencies on:
   - the referenced content type's own Deploy artifact (Document Type/Element Type artifacts already exist in Umbraco Core's own Deploy support — this is a dependency *declaration*, not new machinery to build);
   - the start node's content item, if set, via its UDI.
-- Deploy Refresher notification handlers on `ContentCheckPolicy` save/delete (mirrors the two Guardrail handler classes exactly) — write, update, or remove the on-disk artifact whenever a policy changes in the backoffice.
+- Deploy Refresher notification handlers on `ContentCheckPolicy` save/delete (mirrors the two Guardrail handler classes exactly) — write, update, or remove the on-disk artifact whenever a policy changes in the backoffice. Exact notification names now settled in [Notifications](notifications-spec.md) §2: `ContentCheckPolicySavedNotification` / `ContentCheckPolicyDeletedNotification`.
+- **A second, parallel pair of handlers for `ContentCheckPolicyFolder`** ([Policy Resolution](policy-resolution-spec.md) §4) — the folder that organizes policies in the backoffice tree is the same *kind* of schema-level config as the policy itself, so it gets the same disk-artifact treatment, not an exception. Subscribes to `ContentCheckPolicyFolderSavedNotification` / `ContentCheckPolicyFolderDeletedNotification` ([Notifications](notifications-spec.md) §3).
 
 **Open, not asserted:** the exact on-disk file format and location convention (naming, folder) for the artifact. This has almost certainly moved across Umbraco Deploy versions — needs checking against current Umbraco.Deploy documentation or source when this is actually built, not asserted from memory of the general pattern.
 
@@ -42,7 +44,7 @@ Umbraco.AI faced this identical question for `AIGuardrail` — a DB-persisted, d
 
 ## 4. Scope
 
-**Only `ContentCheckPolicy` (and its rules) needs Deploy support.** Check *types* (`IContentCheck` implementations) are code, not database entities — they deploy the ordinary way, through the NuGet package or project reference that ships them, same as check evaluator types in Umbraco.AI never needed an artifact of their own; only the DB-persisted `AIGuardrail`/`AIProfile`/`AIConnection` entities did.
+**`ContentCheckPolicy` (and its rules) and `ContentCheckPolicyFolder` need Deploy support — nothing else.** Check *types* (`IContentCheck` implementations) are code, not database entities — they deploy the ordinary way, through the NuGet package or project reference that ships them, same as check evaluator types in Umbraco.AI never needed an artifact of their own; only the DB-persisted `AIGuardrail`/`AIProfile`/`AIConnection` entities did. The folder entity ([Policy Resolution](policy-resolution-spec.md) §4, added for the backoffice tree/folder UI) is added to this list for the same reason the policy itself is in it — it's schema-level organizational config, not content, and a policy's `ParentFolderKey` is itself a Deploy dependency the Connector needs to resolve (the folder has to exist in the target environment, or be created by its own artifact, before the policy artifact referencing it can apply cleanly) — same treatment as `ContentTypeKey`/`StartNodeKey` above.
 
 ## 5. Open questions
 

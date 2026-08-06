@@ -227,6 +227,8 @@ Ordering keys off `Cost`, not `Kind` — whether a check's output is reproducibl
 
 **Open item, prompted by [Automate Integration](automate-integration-spec.md), not yet speced:** `ContentCheckReport` has no notion of an overall status for the whole report — only per-entry statuses. An Automate workflow step needs something simple to branch on (worst-status-wins, or a plain `HasBlockingFailure` flag), and [Management API & UI](management-api-ui-spec.md)'s results panel only specs a per-check badge, nothing for the report as a whole — so this isn't Automate-specific, more than one consumer wants it. Whether it's a computed property on `ContentCheckReport` or a separate summary type is undecided.
 
+**The runner fires a notification when it finishes.** `RunAsync` publishes `ContentCheckReportCompletedNotification` (carrying the `ContentCheckReport` it just produced, plus the snapshot's key/content-type-alias/culture/segment for filtering) after every call — see [Notifications](notifications-spec.md) §4 for the full shape and why this is deliberately the low-level, per-snapshot half of a two-tier design, not the notification a page-level Automate trigger should subscribe to.
+
 ## 5. Caching
 
 `IContentCheckResultCache`, key = hash of (content snapshot hash, culture, segment, check alias, check-assembly fingerprint, resolved-config hash).
@@ -262,6 +264,7 @@ This is the phase that matters. **Do not ship the contract to consumers until bo
 - [ ] `ContentCheckAttribute` + `ContentCheckBase<TConfig>` — direct port of `AIGuardrailEvaluatorBase<TConfig>` minus its `[Obsolete]` legacy constructor (nothing to be compatible with yet).
 - [ ] `IContentCheckSnapshot` + an adapter over `IContent` and over an unsaved editing model.
 - [ ] `IContentCheckRunner` + ordering, short-circuit, concurrency cap, timing (§4).
+- [ ] `ContentCheckReportCompletedNotification`, published by the runner after every `RunAsync` call — see [Notifications](notifications-spec.md) §4.
 - [ ] `IContentCheckResultCache` (in-memory v1) per §5 — key includes the check's own assembly version, not a manually-maintained one.
 - [ ] `ContentCheckCollection` / `ContentCheckCollectionBuilder` as `LazyCollectionBuilderBase<,,>` + `IDiscoverable` auto-discovery — **not** `OrderedCollectionBuilder`, which is for middleware pipelines, a different shape of problem.
 - [ ] **Proving check A (`Cost.Free` + `Kind.Deterministic`):** required-property check. Config = property alias + optional per-culture requirement. Exercises `NotApplicable` (via `HasProperty`), `Fail`/`Pass`, and `Targets`.

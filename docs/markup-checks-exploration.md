@@ -8,7 +8,7 @@
 
 ## 1. The idea
 
-Checks that currently only target properties (`IContentCheckSnapshot`, per the main plan's contract) could also target the *rendered output markup* of a page — the actual HTML a browser or search engine receives, not the raw stored content.
+Checks that currently only target properties (`IContentCheckSnapshot`, per [Core Contract](core-contract-spec.md)) could also target the *rendered output markup* of a page — the actual HTML a browser or search engine receives, not the raw stored content.
 
 ## 2. Why this is a distinct need, not a variant of property checking
 
@@ -51,7 +51,7 @@ public interface IMarkupContentCheck : IContentCheck
 }
 ```
 
-This is a **mandatory branch, not an optional add-on** — a meaningfully different relationship than `IFixableContentCheck` (considered and rejected in the main plan), which would have been additive on top of an always-runnable base. Here, `IContentCheck` alone describes something but can't run anything; you have to be one of the two children to be runnable. Anything that actually executes a check (not just lists it) has to pattern-match which one it's holding.
+This is a **mandatory branch, not an optional add-on** — a meaningfully different relationship than `IFixableContentCheck` (considered and rejected in [Core Contract](core-contract-spec.md)), which would have been additive on top of an always-runnable base. Here, `IContentCheck` alone describes something but can't run anything; you have to be one of the two children to be runnable. Anything that actually executes a check (not just lists it) has to pattern-match which one it's holding.
 
 Base classes mirror the split, with a third, more foundational shared piece underneath both — the attribute-reading/lazy-schema/`ResolveConfig` plumbing has nothing to do with property-vs-markup either:
 
@@ -65,7 +65,7 @@ public abstract class MarkupContentCheckBase<TConfig> : ContentCheckMetadataBase
 
 ## 5. Granularity — **Settled**
 
-Markup checks operate at **whole-page level only**. They do not participate in the main plan's cascading-into-nested-elements mechanism (a property-level/structural concept — walking Block List/Grid/Nested Content to discover nested element instances). Rendering one nested block's markup in isolation isn't a well-defined idea, and the real use cases named in §2 are inherently about the full page as delivered, not a fragment of it.
+Markup checks operate at **whole-page level only**. They do not participate in [Policy Resolution](policy-resolution-spec.md)'s cascading-into-nested-elements mechanism (a property-level/structural concept — walking Block List/Grid/Nested Content to discover nested element instances). Rendering one nested block's markup in isolation isn't a well-defined idea, and the real use cases named in §2 are inherently about the full page as delivered, not a fragment of it.
 
 ## 6. Result and Target shape — **Settled**
 
@@ -120,7 +120,7 @@ public sealed class ContentCheckMarkupResult
 }
 ```
 
-Provider failure (site down, timeout, no provider configured) maps cleanly onto the **existing** `ContentCheckStatus.NotEvaluated` / `ContentCheckNotEvaluatedReason.Error` machinery already in the main plan — no new mechanism needed. A more specific reason code (e.g. distinguishing "markup unavailable" from a generic error) is a possible, not-decided future refinement.
+Provider failure (site down, timeout, no provider configured) maps cleanly onto the **existing** `ContentCheckStatus.NotEvaluated` / `ContentCheckNotEvaluatedReason.Error` machinery already in [Core Contract](core-contract-spec.md) — no new mechanism needed. A more specific reason code (e.g. distinguishing "markup unavailable" from a generic error) is a possible, not-decided future refinement.
 
 ### 9.3 Implementation approach for the built-in default — **Open, two real options, not converging yet**
 
@@ -134,7 +134,7 @@ Provider failure (site down, timeout, no provider configured) maps cleanly onto 
 
 Proposed next step, not yet done: investigate whether Umbraco's *native* preview-mode rendering — the same thing that runs when a backoffice user clicks Preview — can be invoked programmatically for a known, already-*saved* draft (a normal, persisted-but-unpublished Umbraco draft). If viable, this covers the AI-generation-loop's baseline case (agent saves a draft the ordinary way, checks it before publish) without needing any of the harder machinery described next.
 
-**Relationship to the sibling Draft Sets project, named precisely because the two problems are not the same size:** Draft Sets already investigated adjacent territory — decorating `IPublishedContentCache`, a `PublishedContentWrapped` overlay, an ambient accessor mirroring `HybridAccessorBase` — but that was for rendering **in-memory, not-yet-persisted** edits (content captured ambiently from an open Draft Set that was never saved to the DB), which they found clean only for value edits and blocked on structural changes. The markup provider's baseline case is narrower: a real, saved draft that Umbraco's own preview mechanism should already know how to render today, no overlay needed. Reconciling with actual in-memory Draft Set edits (the harder problem) stays a later-phase concern in the main plan, not something the test stint needs to solve first.
+**Relationship to the sibling Draft Sets project, named precisely because the two problems are not the same size:** Draft Sets already investigated adjacent territory — decorating `IPublishedContentCache`, a `PublishedContentWrapped` overlay, an ambient accessor mirroring `HybridAccessorBase` — but that was for rendering **in-memory, not-yet-persisted** edits (content captured ambiently from an open Draft Set that was never saved to the DB), which they found clean only for value edits and blocked on structural changes. The markup provider's baseline case is narrower: a real, saved draft that Umbraco's own preview mechanism should already know how to render today, no overlay needed. Reconciling with actual in-memory Draft Set edits (the harder problem) stays [Overview](overview.md)'s Phase 7 concern, not something the test stint needs to solve first.
 
 ## 10. URL/domain resolution — **Open fork**
 
@@ -146,7 +146,7 @@ For Option A (HTTP round-trip) specifically: support an explicit override settin
 
 ## 11. Secondary considerations, named but not developed
 
-- **Fetch-level caching within one run.** If several markup checks run against the same page in one check run, fetching the markup once and sharing it is an obvious optimization. Distinct from the result-cache in the main plan — that's about not re-running a check whose *verdict* would be unchanged; this is about not re-fetching the same *raw markup* multiple times in one run.
+- **Fetch-level caching within one run.** If several markup checks run against the same page in one check run, fetching the markup once and sharing it is an obvious optimization. Distinct from [Core Contract](core-contract-spec.md)'s result-cache — that's about not re-running a check whose *verdict* would be unchanged; this is about not re-fetching the same *raw markup* multiple times in one run.
 
 ## 12. Open questions, consolidated
 
@@ -156,6 +156,6 @@ For Option A (HTTP round-trip) specifically: support an explicit override settin
 4. Whether the single-provider registration shape (§9.1) ever needs to become a discovered collection — revisit only if a real multi-frontend/migration case shows up.
 5. Whether provider failure ever needs a more specific `NotEvaluatedReason` than the existing generic `Error` (§9.2).
 
-## 13. What this thread reused from the main plan, unchanged
+## 13. What this thread reused from Core Contract, unchanged
 
-Worth naming because it's a decent signal the main plan's contract was drawn in the right place: `ContentCheckResult`, `ContentCheckStatus`, `ContentCheckTarget`, and the `NotEvaluated`/`Error` machinery all carried over to markup checking with zero modification. Only the *input* side (a new pair of interfaces, a new context type) needed anything new.
+Worth naming because it's a decent signal [Core Contract](core-contract-spec.md)'s contract was drawn in the right place: `ContentCheckResult`, `ContentCheckStatus`, `ContentCheckTarget`, and the `NotEvaluated`/`Error` machinery all carried over to markup checking with zero modification. Only the *input* side (a new pair of interfaces, a new context type) needed anything new.

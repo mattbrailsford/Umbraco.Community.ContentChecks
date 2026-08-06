@@ -12,7 +12,8 @@ This is the mainline document — vision, naming, cross-cutting decisions, and t
 - [Triggers](triggers-spec.md) — on-demand, on-save, on-publish gating (Phase 4)
 - [AI Integration](ai-integration-spec.md) — `Umbraco.Community.ContentChecks.AI`, the AI-judged check tier (Phase 5)
 - [Automate Integration](automate-integration-spec.md) — `Umbraco.Community.ContentChecks.Automate`, two-way integration with Umbraco's workflow product (not yet a numbered phase)
-- [Deploy Integration](deploy-integration-spec.md) — `Umbraco.Community.ContentChecks.Deploy`, moving check policies between environments (not yet a numbered phase; §1's disk-vs-volatile decision is a recommendation pending confirmation)
+- [Deploy Integration](deploy-integration-spec.md) — `Umbraco.Community.ContentChecks.Deploy`, moving check policies (and now folders) between environments (not yet a numbered phase; §1's disk-vs-volatile decision is a recommendation pending confirmation)
+- [Notifications](notifications-spec.md) — every notification fired across the project: policy/folder CRUD (consumed by Deploy), and the two-tier run-completion pair (consumed by Automate)
 - [Markup-Based Checking (Exploration)](markup-checks-exploration.md) — a distinct, still-open idea: checks against rendered output, not just properties
 - [Market & Ecosystem Research](research.md) — what already exists, and what it validated or ruled out
 
@@ -98,6 +99,8 @@ Umbraco.Community.ContentChecks/
 │   ├── Umbraco.Community.ContentChecks.Web.StaticAssets/Client/   # Lit + TS backoffice UI
 │   ├── Umbraco.Community.ContentChecks.Persistence*/  # only if Phase 2 picks DB storage
 │   ├── Umbraco.Community.ContentChecks.AI/            # Phase 5 — AI-judged check, depends on Umbraco.AI (NuGet)
+│   ├── Umbraco.Community.ContentChecks.Automate/      # bridge to Umbraco.Automate, see Automate Integration spec
+│   ├── Umbraco.Community.ContentChecks.Deploy/        # bridge to Umbraco Deploy, see Deploy Integration spec
 │   └── Umbraco.Community.ContentChecks/               # meta-package
 ├── tests/  (Tests.Unit, Tests.Integration)
 ├── scripts/install-demo-site.{sh,ps1}                 # demo site gitignored, generated per-dev
@@ -144,8 +147,8 @@ See also the Draft Sets discussion in the [markup-checks exploration doc](markup
 
 ## 6. Global constraints
 
-- **Core package takes no AI dependency.** Ever. `Umbraco.Community.ContentChecks.Core` references Umbraco CMS and nothing else. `Umbraco.Community.ContentChecks.AI` depends on Core and on Umbraco.AI — never the reverse.
-- **Two ways in, not one.** `Umbraco.Community.ContentChecks.AI` calls the runner in-process (for sites that also run Umbraco.AI); the Umbraco MCP calls the Management API (for sites that don't). Umbraco.AI itself is not a dependency of anything in this repo except the optional `.AI` project.
+- **Core package takes no dependency on any specific other Umbraco product.** Ever. `Umbraco.Community.ContentChecks.Core` references Umbraco CMS and nothing else. Each integration is its own bridge package that depends on Core *and* the product it integrates with — never the reverse, and never folded into Core itself. This started as "no AI dependency" (`.AI` depends on Core and Umbraco.AI) and generalizes the same way for `.Automate` (see [Automate Integration](automate-integration-spec.md)) and `.Deploy` (see [Deploy Integration](deploy-integration-spec.md)) — Umbraco.AI, Umbraco.Automate, and Umbraco Deploy are each a dependency of exactly one bridge package, never of Core or of each other.
+- **Two ways in to Umbraco.AI specifically, not one.** `Umbraco.Community.ContentChecks.AI` calls the runner in-process (for sites that also run Umbraco.AI); the Umbraco MCP calls the Management API (for sites that don't).
 - Async naming `[Action][Entity]Async`; repositories internal to their service; extension methods in `Umbraco.Community.ContentChecks.Extensions`.
 - Conventional Commits, sentence-case subject.
 - Never break a public API once published. The Phase 1 contract (see [Core Contract](core-contract-spec.md)) is the risk surface — hence its review gate.
@@ -164,6 +167,8 @@ See also the Draft Sets discussion in the [markup-checks exploration doc](markup
 7. **Cascading cost across element-type checks** — an element-type policy runs once per instance found anywhere in a document's block structure, so a `Metered` rule on a common component (Testimonial, Feature Card) multiplies by however many times that component appears on the page. Needs a deliberate stance in [Policy Resolution](policy-resolution-spec.md): batch the calls, cap the instance count per run, surface the multiplication to the editor before they trigger it, or accept it as the real cost of the feature. Not yet decided; must not be left to fall out of whatever the traversal implementation happens to do first.
 
 ~~Port vs. depend, for the config infra~~ — **resolved.** `Umbraco.Community.ContentChecks.AI` living in this repo means it project-references Core's ported infra directly. No cross-repo frontend dependency question remains.
+
+**Not yet merged into this list:** [Automate Integration](automate-integration-spec.md) and [Deploy Integration](deploy-integration-spec.md) each carry their own open questions, not duplicated here to avoid the two copies drifting apart — check those specs directly rather than assuming this list is exhaustive.
 
 ---
 
