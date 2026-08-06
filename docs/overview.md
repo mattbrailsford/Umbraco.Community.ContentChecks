@@ -11,6 +11,8 @@ This is the mainline document — vision, naming, cross-cutting decisions, and t
 - [Management API & Backoffice UI](management-api-ui-spec.md) — the CRUD/authoring surface and the editor-facing UI, including backtesting (Phase 3, Phase 6)
 - [Triggers](triggers-spec.md) — on-demand, on-save, on-publish gating (Phase 4)
 - [AI Integration](ai-integration-spec.md) — `Umbraco.Community.ContentChecks.AI`, the AI-judged check tier (Phase 5)
+- [Automate Integration](automate-integration-spec.md) — `Umbraco.Community.ContentChecks.Automate`, two-way integration with Umbraco's workflow product (not yet a numbered phase)
+- [Deploy Integration](deploy-integration-spec.md) — `Umbraco.Community.ContentChecks.Deploy`, moving check policies between environments (not yet a numbered phase; §1's disk-vs-volatile decision is a recommendation pending confirmation)
 - [Markup-Based Checking (Exploration)](markup-checks-exploration.md) — a distinct, still-open idea: checks against rendered output, not just properties
 - [Market & Ecosystem Research](research.md) — what already exists, and what it validated or ruled out
 
@@ -117,6 +119,8 @@ Umbraco.Community.ContentChecks/
 | 5 — `Umbraco.Community.ContentChecks.AI` | [AI Integration](ai-integration-spec.md) | Sketch only |
 | 6 — Backtest | [Management API & UI](management-api-ui-spec.md) | Sketch only |
 | 7 — Draft Sets integration | (below) | Not started |
+| Unnumbered — Automate integration | [Automate Integration](automate-integration-spec.md) | Design sketch; not yet placed in the sequence above |
+| Unnumbered — Deploy integration | [Deploy Integration](deploy-integration-spec.md) | Design sketch; disk-vs-volatile decision recommended, not yet confirmed |
 
 ### Phase 0 — Bootstrap (complete)
 

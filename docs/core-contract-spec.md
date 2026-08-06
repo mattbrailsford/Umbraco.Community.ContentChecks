@@ -225,6 +225,8 @@ Ordering keys off `Cost`, not `Kind` — whether a check's output is reproducibl
 
 **This runner stays unchanged even as [Policy Resolution](policy-resolution-spec.md) adds element-type cascading and composition matching on top of it** — it was already correctly scoped to "one snapshot, one set of resolved rules, one report." Everything more elaborate calls this same runner once per discovered snapshot and aggregates.
 
+**Open item, prompted by [Automate Integration](automate-integration-spec.md), not yet speced:** `ContentCheckReport` has no notion of an overall status for the whole report — only per-entry statuses. An Automate workflow step needs something simple to branch on (worst-status-wins, or a plain `HasBlockingFailure` flag), and [Management API & UI](management-api-ui-spec.md)'s results panel only specs a per-check badge, nothing for the report as a whole — so this isn't Automate-specific, more than one consumer wants it. Whether it's a computed property on `ContentCheckReport` or a separate summary type is undecided.
+
 ## 5. Caching
 
 `IContentCheckResultCache`, key = hash of (content snapshot hash, culture, segment, check alias, check-assembly fingerprint, resolved-config hash).
