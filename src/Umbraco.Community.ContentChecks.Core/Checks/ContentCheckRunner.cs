@@ -175,7 +175,7 @@ internal sealed class ContentCheckRunner : IContentCheckRunner
     /// </summary>
     private static string? BuildCacheKey(ResolvedContentCheckRule rule, ContentCheckRunRequest request)
     {
-        if (request.Content.VersionId is not int versionId)
+        if (request.Content.VersionId is not { } versionId)
         {
             return null;
         }
