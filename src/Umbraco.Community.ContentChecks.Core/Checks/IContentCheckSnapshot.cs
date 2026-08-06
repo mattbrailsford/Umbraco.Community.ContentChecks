@@ -35,6 +35,7 @@ public interface IContentCheckSnapshot
     /// from "empty value" (→ <see cref="ContentCheckStatus.Fail"/>).
     /// </summary>
     /// <param name="alias">The property alias.</param>
+    /// <returns><c>true</c> if the property exists on this snapshot.</returns>
     bool HasProperty(string alias);
 
     /// <summary>
@@ -44,5 +45,6 @@ public interface IContentCheckSnapshot
     /// <param name="alias">The property alias.</param>
     /// <param name="culture">The culture to read, or <c>null</c> for an invariant property.</param>
     /// <param name="segment">The segment to read, or <c>null</c> for an unsegmented property.</param>
+    /// <returns>The property's value, or <c>default</c> if it has none.</returns>
     TValue? GetValue<TValue>(string alias, string? culture = null, string? segment = null);
 }

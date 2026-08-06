@@ -416,3 +416,53 @@ dotnet_style_prefer_simplified_boolean_expressions = true:suggestion
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 # OTHER DEALINGS IN THE SOFTWARE.
 ##########################################
+
+##########################################
+# Umbraco.Community.ContentChecks: StyleCop overrides
+#
+# StyleCop.Analyzers runs with no project-specific tuning above this point -- inherited
+# unconfigured from the Umbraco.Cms.DraftSets scaffold this repo was bootstrapped from.
+# This project's actual coding conventions deliberately follow the real Umbraco.AI codebase
+# (read directly, not guessed at) rather than StyleCop's stock defaults, and Umbraco.AI
+# itself does not run StyleCop.Analyzers at all -- so its own source violates several of
+# these same rules with no warning. Rather than rewrite this project's code to satisfy
+# rules its own precedent never had to, or drop StyleCop.Analyzers entirely, these are
+# disabled specifically where they'd fight a convention already deliberately in use.
+# Rules that flagged genuine gaps (SA1503 missing braces, SA1611/SA1615 missing param/
+# return docs) were fixed in code instead -- see the commits that added this section.
+##########################################
+
+[*.{cs,csx,cake}]
+
+# SA1101: Prefix local calls with 'this.' -- Umbraco.AI's own code never does this.
+dotnet_diagnostic.SA1101.severity = none
+
+# SA1309: Field names must not begin with an underscore -- the opposite of the convention
+# Umbraco.AI actually uses (e.g. AIEditableModelResolver's _configuration, _resolver).
+dotnet_diagnostic.SA1309.severity = none
+
+# SA1633: The file header is missing -- no file-header template is configured above
+# (see the commented-out file_header_template higher in this file), and Umbraco.AI's
+# real source carries no file headers either.
+dotnet_diagnostic.SA1633.severity = none
+
+# SA1623: Property summary text must start with "Gets" / "Gets or sets" -- overly rigid
+# templated phrasing this project's docs (and Umbraco.AI's) don't follow; descriptive
+# prose is preferred throughout.
+dotnet_diagnostic.SA1623.severity = none
+
+# SA1201/SA1202/SA1204: Member ordering (constructors vs. properties, public vs.
+# protected, static vs. instance) -- Umbraco.AI's own base classes (e.g.
+# AIGuardrailEvaluatorBase<TConfig>) interleave these deliberately for readability
+# (properties, then a protected member, then the constructor), which this project
+# mirrors on purpose.
+dotnet_diagnostic.SA1201.severity = none
+dotnet_diagnostic.SA1202.severity = none
+dotnet_diagnostic.SA1204.severity = none
+
+# SA1402/SA1649: One type per file / file name matches the first type -- Umbraco.AI's
+# own check/evaluator files (e.g. ContainsGuardrailEvaluator.cs) deliberately bundle a
+# check's config class with the check itself in one file, named after the check, not
+# the config. This project's Examples/*.cs files do the same on purpose.
+dotnet_diagnostic.SA1402.severity = none
+dotnet_diagnostic.SA1649.severity = none

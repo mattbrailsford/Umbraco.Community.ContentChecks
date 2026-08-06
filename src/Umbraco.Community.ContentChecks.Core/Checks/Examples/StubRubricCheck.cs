@@ -44,6 +44,7 @@ public sealed class StubRubricCheck : ContentCheckBase<StubRubricCheckConfig>
     /// <summary>
     /// Initializes a new instance of the <see cref="StubRubricCheck"/> class.
     /// </summary>
+    /// <param name="infrastructure">The check infrastructure dependencies.</param>
     public StubRubricCheck(IContentCheckInfrastructure infrastructure)
         : base(infrastructure)
     {

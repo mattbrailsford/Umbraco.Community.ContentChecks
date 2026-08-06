@@ -31,6 +31,7 @@ public sealed class RequiredPropertyCheck : ContentCheckBase<RequiredPropertyChe
     /// <summary>
     /// Initializes a new instance of the <see cref="RequiredPropertyCheck"/> class.
     /// </summary>
+    /// <param name="infrastructure">The check infrastructure dependencies.</param>
     public RequiredPropertyCheck(IContentCheckInfrastructure infrastructure)
         : base(infrastructure)
     {

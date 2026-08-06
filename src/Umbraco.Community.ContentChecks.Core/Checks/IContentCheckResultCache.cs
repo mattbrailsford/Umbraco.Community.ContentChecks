@@ -21,5 +21,6 @@ public interface IContentCheckResultCache
     /// <param name="key">The cache key, built by the runner.</param>
     /// <param name="result">The result to store.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A task that represents the asynchronous operation.</returns>
     Task SetAsync(string key, ContentCheckResult result, CancellationToken cancellationToken);
 }

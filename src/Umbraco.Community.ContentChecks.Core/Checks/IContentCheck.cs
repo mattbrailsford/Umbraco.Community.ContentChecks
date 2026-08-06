@@ -44,9 +44,9 @@ public interface IContentCheck : IDiscoverable
     Type? ConfigType { get; }
 
     /// <summary>
-    /// Gets the configuration schema for UI rendering. Returns <c>null</c> if the check takes
-    /// no configuration.
+    /// Gets the configuration schema for UI rendering.
     /// </summary>
+    /// <returns>The schema, or <c>null</c> if the check takes no configuration.</returns>
     ContentCheckConfigSchema? GetConfigSchema();
 
     /// <summary>

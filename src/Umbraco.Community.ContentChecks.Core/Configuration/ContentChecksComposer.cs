@@ -10,8 +10,5 @@ namespace Umbraco.Community.ContentChecks.Core.Configuration;
 public class ContentChecksComposer : IComposer
 {
     /// <inheritdoc />
-    public void Compose(IUmbracoBuilder builder)
-    {
-        builder.AddContentChecks();
-    }
+    public void Compose(IUmbracoBuilder builder) => builder.AddContentChecks();
 }
