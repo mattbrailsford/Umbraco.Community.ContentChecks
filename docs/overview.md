@@ -77,7 +77,7 @@ These findings came from an adversarial interrogation of the source spec's Conte
 | E | Non-interactive publish paths (scheduled, bulk, descendants, Deploy) | [Triggers](triggers-spec.md) — explicit per-trigger opt-in; never block non-interactive publishes in v1 |
 | F | Single-item scope is a one-way door | [Core Contract](core-contract-spec.md) — no `Scope` enum needed; only item-level exists for v1, and Branch/Set arrive later as a new opt-in interface, not a retrofit — enum/interface additions are non-breaking, so nothing is actually foreclosed |
 | G | Variants unaddressed | [Core Contract](core-contract-spec.md) — culture + segment on context and on every result target |
-| H | Verdict flicker; no caching or versioning | [Core Contract](core-contract-spec.md) — cache keyed on the content item's own version Guid where one exists (falling back to a value hash for unsaved/Draft Set content) + check alias + check-assembly fingerprint (automatic, no manual version) + resolved-config hash |
+| H | Verdict flicker; no caching or versioning | [Core Contract](core-contract-spec.md) — cache keyed on the content item's own version id (`int? VersionId`) where one exists (falling back to a value hash for unsaved/Draft Set content) + check alias + check-assembly fingerprint (automatic, no manual version) + resolved-config hash |
 | I | Feedback has no address to point at | [Core Contract](core-contract-spec.md) — `ContentCheckTarget` on every result |
 | J | Non-goal boundary muddled | §2 above |
 | K | Rubric authoring untested, no shipped defaults | [AI Integration](ai-integration-spec.md) (default rubrics), [Management API & UI](management-api-ui-spec.md) (backtest) |
