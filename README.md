@@ -1,6 +1,6 @@
 # Umbraco.Community.ContentChecks
 
-> 🧪 **Pre-release.** In active development — Phase 0/7 of the [implementation plan](https://github.com/mattbrailsford/Umbraco.Community.ContentChecks). Not yet usable.
+> 🧪 **Pre-release.** In active development — Phase 0/7 of the [project plan](docs/overview.md). Not yet usable.
 
 Content Checks turns "what good content looks like" into an executable, triggerable check that returns a status plus actionable feedback — for editors, and for AI agents that generate content and need to validate their own work before a human sees it.
 
@@ -9,7 +9,7 @@ Content Checks turns "what good content looks like" into an executable, triggera
 
 ## Status
 
-Nothing here yet works. See the implementation plan for the phased build-out, the design decisions already made, and the open questions still on the table.
+Nothing here yet works. See [docs/overview.md](docs/overview.md) for the phased build-out, the design decisions already made, and the open questions still on the table — it links out to a spec per feature area.
 
 ## License
 
