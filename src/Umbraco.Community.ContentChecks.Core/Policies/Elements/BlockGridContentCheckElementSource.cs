@@ -43,7 +43,7 @@ public sealed class BlockGridContentCheckElementSource : ContentCheckElementSour
     public override IEnumerable<Guid> GetAllowedElementTypeKeys(object? dataTypeConfiguration)
     {
         var configuration = ConfigurationEditor.ConfigurationAs<BlockGridConfiguration>(dataTypeConfiguration);
-        return GetAllowedElementTypeKeys(configuration?.Blocks);
+        return BlockConfigurationHelper.GetAllowedElementTypeKeys(configuration?.Blocks);
     }
 
     /// <inheritdoc />

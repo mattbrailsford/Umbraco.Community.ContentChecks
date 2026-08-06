@@ -41,7 +41,7 @@ public sealed class BlockListContentCheckElementSource : ContentCheckElementSour
     public override IEnumerable<Guid> GetAllowedElementTypeKeys(object? dataTypeConfiguration)
     {
         var configuration = ConfigurationEditor.ConfigurationAs<BlockListConfiguration>(dataTypeConfiguration);
-        return GetAllowedElementTypeKeys(configuration?.Blocks);
+        return BlockConfigurationHelper.GetAllowedElementTypeKeys(configuration?.Blocks);
     }
 
     /// <inheritdoc />
