@@ -53,3 +53,9 @@ The thing that makes rubrics trustworthy (finding K in the [Overview](overview.m
 - [ ] Rationale: if a new rubric fails 90% of the live site, the rubric is wrong, not the site. Without this, checks get authored blind and abandoned.
 
 This directly reuses the health-check-style dashboard above rather than being a separate build — same report-across-many-items view, different entry point.
+
+## Run-all endpoint (low priority)
+
+Raised alongside [open question 5](overview.md): not "should one check be able to see the whole site" (that's [Core Contract](core-contract-spec.md)'s `Scope` cut, still genuinely undecided as a check-authoring question — a single check's `EvaluateAsync` still only ever sees one snapshot), but a much simpler, purely operational ask: an endpoint that runs *every* applicable policy across a branch or the whole site in one sweep, rather than one policy at a time the way Backtest above is scoped. Low priority, not v1-blocking — recorded so it isn't lost, not scheduled.
+
+**This reuses the same report-across-many-items mechanism as Backtest**, just resolving policies per item (via [Policy Resolution](policy-resolution-spec.md)'s resolution service) instead of running one named policy against every item. **The version-keyed cache ([Core Contract](core-contract-spec.md) §5) is what makes this affordable to actually run on a schedule**, not just on demand: a repeat sweep only pays for items that changed since the last one, so "run all checks across the site" degrades gracefully from "expensive full audit" the first time to "cheap incremental check" every time after — without this endpoint needing any cache-awareness of its own, since that's the underlying `IContentCheckResultCache`'s job regardless of caller.

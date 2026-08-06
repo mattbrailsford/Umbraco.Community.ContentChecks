@@ -1,6 +1,6 @@
 # Umbraco.Community.ContentChecks — Overview
 
-**Status:** Draft, pre-build. Phase 0 is complete. Phases 1–2 are actionable; Phases 3+ need re-planning once the contract is real.
+**Status:** Draft, pre-build. Phase 0 is mostly complete, reopened in one respect — v17 support (§7) widens the CMS package range and needs a second demo-site boot check, see §5's Phase 0 notes. Phases 1–2 are actionable; Phases 3+ need re-planning once the contract is real.
 **Owner:** Matt Brailsford
 
 This is the mainline document — vision, naming, cross-cutting decisions, and the roadmap linking out to a spec per feature area. It doesn't duplicate the detail in those specs; it's the map, not the territory.
@@ -43,7 +43,7 @@ Ship a standalone Umbraco package that turns "what good content looks like" into
 | Root namespace | `Umbraco.Community.ContentChecks` | |
 | Repo | `github.com/mattbrailsford/Umbraco.Community.ContentChecks` | Private first, public when solid. No donation path assumed, so no `Umbraco.Cms.*` namespace needed. |
 | AI integration | `Umbraco.Community.ContentChecks.AI`, inside the **ContentChecks repo** (not the Umbraco.AI monorepo) | ContentChecks owns the check contract; the AI-judged tier is an implementation of that contract, not a feature of Umbraco.AI. Living beside Core lets it reuse the same ported config infra (see [Core Contract](core-contract-spec.md)) with a project reference, no cross-repo frontend dependency. It takes Umbraco.AI as a normal NuGet dependency (version range), the same direction any third-party consumer of Umbraco.AI would. Keeps Core dependency-free; keeps Umbraco.AI's monorepo/CLAUDE.md/branch model out of scope for this product entirely. |
-| CMS floor (v1) | `[18.0.0, 19)` | No new core seams are needed, so v17 is technically possible — but Draft Sets integration is v18-only and multi-targeting is real cost. Revisit after v1 (open question 3). |
+| CMS floor (v1) | **Both v17 and v18** — decided (was `[18.0.0, 19)` only; see the Phase 0 note below, this reopens a "complete" checklist item). | No new core seams are needed for either version, so this is a package-range decision, not a multi-codebase one: target a CMS dependency range wide enough to cover both (`[17.0.0, 19)`, revisit if an actual v17/v18 API difference surfaces during build) rather than adopting Umbraco.AI's heavier vN/dev branch-per-major model — that model earns its cost at Umbraco.AI's scale (many products, many teams), not for a single small package with no known API divergence to maintain across. **Draft Sets integration (Phase 7) stays v18-only regardless** — that's a constraint of the separate Draft Sets repo/POC, not a ContentChecks packaging choice, and doesn't change by ContentChecks itself supporting both. |
 
 **Positioning line to reuse:** *"Like Umbraco's Health Checks, but for content."* Now literal, not just an analogy. Health Checks already have the exact shape needed (a status plus a message, grouped, run on demand from a dashboard) and their result model solves finding G3 for free. Research ([research.md](research.md)) confirms this is a well-regarded, well-understood extension pattern in the Umbraco community, not just a convenient comparison.
 
@@ -114,7 +114,7 @@ Umbraco.Community.ContentChecks/
 
 | Phase | Spec | Status |
 |---|---|---|
-| 0 — Bootstrap | (below) | **Complete** |
+| 0 — Bootstrap | (below) | **Mostly complete — reopened for v17** (§7 CMS floor decision) |
 | 1 — Contract, runner, two proving checks | [Core Contract](core-contract-spec.md) | Contract finalized; not yet built |
 | 2 — Check policies & configuration | [Policy Resolution](policy-resolution-spec.md) | Design settled; not yet built |
 | 3 — Management API & backoffice UI | [Management API & UI](management-api-ui-spec.md) | Sketch only |
@@ -125,15 +125,15 @@ Umbraco.Community.ContentChecks/
 | Unnumbered — Automate integration | [Automate Integration](automate-integration-spec.md) | Design sketch; not yet placed in the sequence above |
 | Unnumbered — Deploy integration | [Deploy Integration](deploy-integration-spec.md) | Design sketch; disk-vs-volatile decision recommended, not yet confirmed |
 
-### Phase 0 — Bootstrap (complete)
+### Phase 0 — Bootstrap (mostly complete, reopened for v17)
 
 - [x] Create repo `mattbrailsford/Umbraco.Community.ContentChecks`, private. (User created it directly; local scaffold pushed 2026-08-05.)
 - [x] Copy the structural scaffolding from `Umbraco.Cms.DraftSets`: `.slnx`, `version.json` + NBGV, `Directory.Packages.props`, `.editorconfig`, `.gitignore`, `scripts/install-demo-site.{sh,ps1}`, test project layout. Version started at `0.1.0-alpha` (new product, not tracking a CMS major the way Draft Sets does) — flagged as an assumption, revisit if wrong.
-- [x] Set CMS floor `[18.0.0, 19)`, TFM `net10.0`.
-- [x] Generate the demo site, confirm it boots. Confirmed: `dotnet run` reaches "Application started" on `https://localhost:44377` with no exceptions.
+- [x] Set CMS floor `[18.0.0, 19)`, TFM `net10.0`. **Superseded — reopened.** §1's CMS floor decision now targets both v17 and v18; this checklist item was completed against the earlier v18-only decision and needs redoing: widen the package range to `[17.0.0, 19)` and confirm the demo site (below) still boots against a v17 install, not just v18. Not yet done — recorded as a real to-do, not silently marked still-complete against a decision that's since changed.
+- [x] Generate the demo site, confirm it boots. Confirmed: `dotnet run` reaches "Application started" on `https://localhost:44377` with no exceptions. **v18 confirmed only** — a v17 demo site/boot check is now needed too, per the item above.
 - ~~Project-reference the package into the Umbraco.AI demo site for fast iteration~~ — **dropped, superseded by a global rule:** no project reference ever crosses between this repo and the Umbraco.AI monorepo, in either direction. This repo's own demo site is the one place to develop and verify it. If the `.AI` project (Phase 5) ever needs to exercise real Umbraco.AI behavior during development, pull Umbraco.AI's own published NuGet package (its nightly/prerelease feed) into *this* repo's demo site — never a cross-repo project reference. Keeps the two repos genuinely decoupled, not just decoupled in the shipped package.
 
-**Acceptance:** empty package installs into a running Umbraco 18 site with no errors. **Met**, via ContentChecks' own demo site.
+**Acceptance:** empty package installs into a running Umbraco 18 site with no errors. **Met for v18**, via ContentChecks' own demo site. **Not yet re-verified against v17** — needed before this checklist item can be considered complete again under the now-both-versions decision above.
 
 ### Phase 7 — Draft Sets integration (not started)
 
@@ -158,13 +158,13 @@ See also the Draft Sets discussion in the [markup-checks exploration doc](markup
 
 ## 7. Open questions (master list)
 
-1. **Rubric authoring UX** — a free-text field, or guided criteria with weights? Both are just fields on a `TConfig` class ([Core Contract](core-contract-spec.md)'s config schema system), so this is a schema-design question, not a UI-build question: what field(s) does the rubric check's config class expose. Free text is faster to author and much harder to make produce stable judgments.
-2. **Who owns the round cap** — the agent's system prompt, the tool description, or a hard limit in the tool? Leaning tool-enforced hard limit. See [AI Integration](ai-integration-spec.md).
-3. **v17 support** — technically possible (no new core seams needed). Worth it, or v18-only for v1?
-4. **Scoring transparency** — do editors see the raw score, or only pass/warn/fail? Showing it builds trust but invites arguing with a number. See [Management API & UI](management-api-ui-spec.md).
-5. **Does a check ever get to see the whole site?** Cross-page rules ("no two pages target this keyword") need a Branch/Set scope implemented, deferred past v1 but the contract must not preclude it. See [Core Contract](core-contract-spec.md).
-6. **Power-user escape hatch** — Drupal's Field Validation module ships a "Callback"/"Expression" validator alongside its picklist of no-code validators, so an edge case that doesn't justify a full C# assembly can still be handled without one. Worth a "Script Check" type in v2 (a sandboxed expression evaluated against the snapshot), explicitly deferred — flagged here so the contract doesn't quietly foreclose it. See [research.md](research.md).
-7. **Cascading cost across element-type checks** — an element-type policy runs once per instance found anywhere in a document's block structure, so a `Metered` rule on a common component (Testimonial, Feature Card) multiplies by however many times that component appears on the page. Needs a deliberate stance in [Policy Resolution](policy-resolution-spec.md): batch the calls, cap the instance count per run, surface the multiplication to the editor before they trigger it, or accept it as the real cost of the feature. Not yet decided; must not be left to fall out of whatever the traversal implementation happens to do first.
+1. ~~**Rubric authoring UX**~~ — **resolved: free-form text.** See [AI Integration](ai-integration-spec.md)'s build checklist. A plain multi-line field on the rubric check's `TConfig`, no guided/weighted-criteria form.
+2. ~~**Who owns the round cap**~~ — **resolved: the tool itself, as a hard limit.** Not the agent's system prompt, not just a description hint. See [AI Integration](ai-integration-spec.md).
+3. ~~**v17 support**~~ — **resolved: both v17 and v18.** See §1's CMS floor row, updated accordingly — this also reopens a Phase 0 checklist item that was completed against the old v18-only decision (below).
+4. **Scoring transparency** — deliberately not decided yet, on purpose: build the results UI first and judge from the real thing, not from imagining it in the abstract. Revisit once [Management API & UI](management-api-ui-spec.md)'s results panel exists.
+5. **Does a check ever get to see the whole site?** Still genuinely undecided — a Branch/Set scope for a single check's `EvaluateAsync` is deferred past v1, and the contract must not preclude it. See [Core Contract](core-contract-spec.md). **Distinct, lower-priority idea recorded separately, not a resolution of this:** a bulk "run every applicable policy across a branch/site in one sweep" endpoint — an operational, many-items-at-once feature built on the existing one-snapshot-at-a-time check contract, not a new scope for checks themselves. See [Management API & UI](management-api-ui-spec.md)'s "Run-all endpoint."
+6. **Power-user escape hatch** — Drupal's Field Validation module ships a "Callback"/"Expression" validator alongside its picklist of no-code validators, so an edge case that doesn't justify a full C# assembly can still be handled without one. Worth a "Script Check" type in v2 (a sandboxed expression evaluated against the snapshot), explicitly deferred — flagged here so the contract doesn't quietly foreclose it. See [research.md](research.md). **A possible alternative to this, also deferred:** AI-assisted authoring — an advanced user describes what they want in plain English instead of writing an expression, and it gets turned into rubric text or an assembled set of existing check configs. Recorded as its own future idea, not a variant of the Script Check one — see [AI Integration](ai-integration-spec.md).
+7. **Cascading cost across element-type checks** — an element-type policy runs once per instance found anywhere in a document's block structure, so a `Metered` rule on a common component (Testimonial, Feature Card) multiplies by however many times that component appears on the page. Needs a deliberate stance in [Policy Resolution](policy-resolution-spec.md): batch the calls, cap the instance count per run, surface the multiplication to the editor before they trigger it, or accept it as the real cost of the feature. **Partially mitigated for repeat runs, not resolved for a first run:** [Core Contract](core-contract-spec.md) §5's version-keyed cache means a page that's already been evaluated skips every unchanged instance on the next run — real savings, but it does nothing for the first time twenty instances are evaluated in one sweep. The batch/cap decision for that first run is still open; must not be left to fall out of whatever the traversal implementation happens to do first.
 
 ~~Port vs. depend, for the config infra~~ — **resolved.** `Umbraco.Community.ContentChecks.AI` living in this repo means it project-references Core's ported infra directly. No cross-repo frontend dependency question remains.
 
