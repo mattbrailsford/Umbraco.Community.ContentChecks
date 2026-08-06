@@ -90,26 +90,8 @@ internal sealed class EFCoreContentCheckPolicyRepository : IContentCheckPolicyRe
     }
 
     /// <inheritdoc />
-    public async Task<bool> DeleteAsync(Guid key, CancellationToken cancellationToken = default)
-    {
-        using IEFCoreScope<ContentChecksDbContext> scope = _scopeProvider.CreateScope();
-
-        var deleted = await scope.ExecuteWithContextAsync(async db =>
-        {
-            var existing = await db.Policies.FindAsync([key], cancellationToken);
-            if (existing is null)
-            {
-                return false;
-            }
-
-            db.Policies.Remove(existing);
-            await db.SaveChangesAsync(cancellationToken);
-            return true;
-        });
-
-        scope.Complete();
-        return deleted;
-    }
+    public Task<bool> DeleteAsync(Guid key, CancellationToken cancellationToken = default)
+        => DeleteEntityAsync<ContentCheckPolicyEntity>(key, cancellationToken);
 
     /// <inheritdoc />
     public async Task<ContentCheckPolicyFolder?> GetFolderByKeyAsync(Guid key, CancellationToken cancellationToken = default)
@@ -156,19 +138,27 @@ internal sealed class EFCoreContentCheckPolicyRepository : IContentCheckPolicyRe
     }
 
     /// <inheritdoc />
-    public async Task<bool> DeleteFolderAsync(Guid key, CancellationToken cancellationToken = default)
+    public Task<bool> DeleteFolderAsync(Guid key, CancellationToken cancellationToken = default)
+        => DeleteEntityAsync<ContentCheckPolicyFolderEntity>(key, cancellationToken);
+
+    /// <summary>
+    /// Deletes an entity by its <c>Key</c>, shared by <see cref="DeleteAsync"/> and
+    /// <see cref="DeleteFolderAsync"/> -- the two differ only in which entity type they target.
+    /// </summary>
+    private async Task<bool> DeleteEntityAsync<TEntity>(Guid key, CancellationToken cancellationToken)
+        where TEntity : class
     {
         using IEFCoreScope<ContentChecksDbContext> scope = _scopeProvider.CreateScope();
 
         var deleted = await scope.ExecuteWithContextAsync(async db =>
         {
-            var existing = await db.PolicyFolders.FindAsync([key], cancellationToken);
+            var existing = await db.Set<TEntity>().FindAsync([key], cancellationToken);
             if (existing is null)
             {
                 return false;
             }
 
-            db.PolicyFolders.Remove(existing);
+            db.Set<TEntity>().Remove(existing);
             await db.SaveChangesAsync(cancellationToken);
             return true;
         });

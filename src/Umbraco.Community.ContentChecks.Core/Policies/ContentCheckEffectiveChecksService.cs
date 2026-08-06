@@ -42,14 +42,18 @@ internal sealed class ContentCheckEffectiveChecksService : IContentCheckEffectiv
     {
         var results = new List<ContentCheckEffectiveCheck>();
 
-        var contentType = await _contentTypeService.GetAsync(contentTypeKey);
+        // Scoped to this one call: the same element type reachable via several sibling properties
+        // (a deliberate, non-deduplicated reporting case — see the cycle-guard note below) would
+        // otherwise repeat the same content-type/policy/data-type lookups once per occurrence.
+        var cache = new EffectiveChecksCache();
+
+        var contentType = await GetContentTypeAsync(contentTypeKey, cache);
         if (contentType is null)
         {
             return results;
         }
 
-        var candidateKeys = new HashSet<Guid>(contentType.CompositionKeys()) { contentType.Key };
-        var directAndComposed = await _policyService.GetPoliciesByContentTypeKeysAsync(candidateKeys, cancellationToken);
+        var directAndComposed = await GetMatchingPoliciesAsync(contentType.Key, contentType.CompositionKeys(), cache, cancellationToken);
         foreach (var policy in directAndComposed)
         {
             results.Add(policy.ContentTypeKey == contentType.Key
@@ -66,7 +70,7 @@ internal sealed class ContentCheckEffectiveChecksService : IContentCheckEffectiv
         // type visited anywhere in the walk, so the same element type reachable via two distinct
         // sibling properties is still reported for both -- only a genuine cycle back to an
         // ancestor already on this path is skipped.
-        await WalkCascadingAsync(contentType, new HashSet<Guid> { contentType.Key }, results, cancellationToken);
+        await WalkCascadingAsync(contentType, new HashSet<Guid> { contentType.Key }, results, cache, cancellationToken);
 
         return results;
     }
@@ -75,6 +79,7 @@ internal sealed class ContentCheckEffectiveChecksService : IContentCheckEffectiv
         IContentTypeComposition contentType,
         HashSet<Guid> visitedOnPath,
         List<ContentCheckEffectiveCheck> results,
+        EffectiveChecksCache cache,
         CancellationToken cancellationToken)
     {
         foreach (var propertyType in contentType.CompositionPropertyTypes)
@@ -85,7 +90,7 @@ internal sealed class ContentCheckEffectiveChecksService : IContentCheckEffectiv
                 continue;
             }
 
-            var dataType = await _dataTypeService.GetAsync(propertyType.DataTypeKey);
+            var dataType = await GetDataTypeAsync(propertyType.DataTypeKey, cache);
             var allowedElementTypeKeys = source.GetAllowedElementTypeKeys(dataType?.ConfigurationObject).Distinct();
 
             foreach (var elementTypeKey in allowedElementTypeKeys)
@@ -95,14 +100,13 @@ internal sealed class ContentCheckEffectiveChecksService : IContentCheckEffectiv
                     continue;
                 }
 
-                var elementType = await _contentTypeService.GetAsync(elementTypeKey);
+                var elementType = await GetContentTypeAsync(elementTypeKey, cache);
                 if (elementType is null)
                 {
                     continue;
                 }
 
-                var candidateKeys = new HashSet<Guid>(elementType.CompositionKeys()) { elementType.Key };
-                var matches = await _policyService.GetPoliciesByContentTypeKeysAsync(candidateKeys, cancellationToken);
+                var matches = await GetMatchingPoliciesAsync(elementType.Key, elementType.CompositionKeys(), cache, cancellationToken);
                 foreach (var policy in matches)
                 {
                     results.Add(new ContentCheckEffectiveCheck
@@ -115,8 +119,60 @@ internal sealed class ContentCheckEffectiveChecksService : IContentCheckEffectiv
                 }
 
                 var nextVisitedOnPath = new HashSet<Guid>(visitedOnPath) { elementTypeKey };
-                await WalkCascadingAsync(elementType, nextVisitedOnPath, results, cancellationToken);
+                await WalkCascadingAsync(elementType, nextVisitedOnPath, results, cache, cancellationToken);
             }
         }
+    }
+
+    private async Task<IContentType?> GetContentTypeAsync(Guid contentTypeKey, EffectiveChecksCache cache)
+    {
+        if (cache.ContentTypes.TryGetValue(contentTypeKey, out var cached))
+        {
+            return cached;
+        }
+
+        var contentType = await _contentTypeService.GetAsync(contentTypeKey);
+        cache.ContentTypes[contentTypeKey] = contentType;
+        return contentType;
+    }
+
+    private async Task<IDataType?> GetDataTypeAsync(Guid dataTypeKey, EffectiveChecksCache cache)
+    {
+        if (cache.DataTypes.TryGetValue(dataTypeKey, out var cached))
+        {
+            return cached;
+        }
+
+        var dataType = await _dataTypeService.GetAsync(dataTypeKey);
+        cache.DataTypes[dataTypeKey] = dataType;
+        return dataType;
+    }
+
+    private async Task<IReadOnlyList<ContentCheckPolicy>> GetMatchingPoliciesAsync(
+        Guid contentTypeKey, IEnumerable<Guid> compositionKeys, EffectiveChecksCache cache, CancellationToken cancellationToken)
+    {
+        if (cache.PoliciesByContentTypeKey.TryGetValue(contentTypeKey, out var cached))
+        {
+            return cached;
+        }
+
+        var candidateKeys = new HashSet<Guid>(compositionKeys) { contentTypeKey };
+        var policies = await _policyService.GetPoliciesByContentTypeKeysAsync(candidateKeys, cancellationToken);
+        cache.PoliciesByContentTypeKey[contentTypeKey] = policies;
+        return policies;
+    }
+
+    /// <summary>
+    /// Per-<see cref="GetEffectiveChecksAsync"/>-call memoization, so a content type reached via
+    /// several sibling properties pays for each content-type/policy/data-type lookup once, not
+    /// once per occurrence.
+    /// </summary>
+    private sealed class EffectiveChecksCache
+    {
+        public Dictionary<Guid, IContentType?> ContentTypes { get; } = [];
+
+        public Dictionary<Guid, IDataType?> DataTypes { get; } = [];
+
+        public Dictionary<Guid, IReadOnlyList<ContentCheckPolicy>> PoliciesByContentTypeKey { get; } = [];
     }
 }

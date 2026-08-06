@@ -53,13 +53,18 @@ internal sealed class ContentCheckResolutionService : IContentCheckResolutionSer
     {
         var results = new List<ContentCheckResolvedTarget>();
 
-        var rootContentType = await _contentTypeService.GetAsync(content.ContentType.Key);
+        // Scoped to this one call: a page with twenty instances of the same element type (or a
+        // policy revisiting the same content type via several nested paths) would otherwise repeat
+        // the same content-type/policy/start-node lookups once per instance.
+        var cache = new ResolutionCache();
+
+        var rootContentType = await GetContentTypeAsync(content.ContentType.Key, cache);
         if (rootContentType is null)
         {
             return results;
         }
 
-        var rootPolicies = await GetMatchingPoliciesAsync(rootContentType.Key, rootContentType.CompositionKeys(), content, cancellationToken);
+        var rootPolicies = await GetMatchingPoliciesAsync(rootContentType.Key, rootContentType.CompositionKeys(), content, cache, cancellationToken);
         var rootRules = ResolveRules(rootPolicies);
         if (rootRules.Count > 0)
         {
@@ -80,7 +85,7 @@ internal sealed class ContentCheckResolutionService : IContentCheckResolutionSer
                     p.PropertyType.VariesBySegment() ? segment : null)))
             .ToList();
 
-        await CascadeAsync(rootProperties, content, results, cancellationToken);
+        await CascadeAsync(rootProperties, content, results, cache, cancellationToken);
 
         return results;
     }
@@ -89,6 +94,7 @@ internal sealed class ContentCheckResolutionService : IContentCheckResolutionSer
         IReadOnlyList<(string Alias, string? PropertyEditorAlias, object? RawValue)> properties,
         IContent rootContent,
         List<ContentCheckResolvedTarget> results,
+        ResolutionCache cache,
         CancellationToken cancellationToken)
     {
         foreach (var property in properties)
@@ -106,17 +112,17 @@ internal sealed class ContentCheckResolutionService : IContentCheckResolutionSer
 
             foreach (var instance in source.GetElementInstances(property.RawValue))
             {
-                var elementType = await _contentTypeService.GetAsync(instance.ContentTypeKey);
+                var elementType = await GetContentTypeAsync(instance.ContentTypeKey, cache);
                 if (elementType is not null)
                 {
                     var matchingPolicies = await GetMatchingPoliciesAsync(
-                        elementType.Key, elementType.CompositionKeys(), rootContent, cancellationToken);
+                        elementType.Key, elementType.CompositionKeys(), rootContent, cache, cancellationToken);
                     var rules = ResolveRules(matchingPolicies);
                     if (rules.Count > 0)
                     {
                         results.Add(new ContentCheckResolvedTarget
                         {
-                            Snapshot = new BlockElementContentCheckSnapshot(instance, rootContent.VersionId),
+                            Snapshot = new ContentCheckElementInstanceSnapshot(instance, rootContent.VersionId),
                             Rules = rules,
                             ContainingPropertyAlias = property.Alias,
                         });
@@ -126,27 +132,49 @@ internal sealed class ContentCheckResolutionService : IContentCheckResolutionSer
                 var nestedProperties = instance.Values
                     .Select(v => (v.Alias, v.PropertyEditorAlias, (object?)v.Value))
                     .ToList();
-                await CascadeAsync(nestedProperties, rootContent, results, cancellationToken);
+                await CascadeAsync(nestedProperties, rootContent, results, cache, cancellationToken);
             }
         }
     }
 
-    private async Task<IReadOnlyList<ContentCheckPolicy>> GetMatchingPoliciesAsync(
-        Guid contentTypeKey, IEnumerable<Guid> compositionKeys, IContent rootContent, CancellationToken cancellationToken)
+    private async Task<IContentType?> GetContentTypeAsync(Guid contentTypeKey, ResolutionCache cache)
     {
-        var candidateKeys = new HashSet<Guid>(compositionKeys) { contentTypeKey };
-        var policies = await _policyService.GetPoliciesByContentTypeKeysAsync(candidateKeys, cancellationToken);
-        return policies.Where(p => IsWithinStartNode(rootContent, p.StartNodeKey)).ToList();
+        if (cache.ContentTypes.TryGetValue(contentTypeKey, out var cached))
+        {
+            return cached;
+        }
+
+        var contentType = await _contentTypeService.GetAsync(contentTypeKey);
+        cache.ContentTypes[contentTypeKey] = contentType;
+        return contentType;
     }
 
-    private bool IsWithinStartNode(IContent content, Guid? startNodeKey)
+    private async Task<IReadOnlyList<ContentCheckPolicy>> GetMatchingPoliciesAsync(
+        Guid contentTypeKey, IEnumerable<Guid> compositionKeys, IContent rootContent, ResolutionCache cache, CancellationToken cancellationToken)
+    {
+        if (!cache.PoliciesByContentTypeKey.TryGetValue(contentTypeKey, out var policies))
+        {
+            var candidateKeys = new HashSet<Guid>(compositionKeys) { contentTypeKey };
+            policies = await _policyService.GetPoliciesByContentTypeKeysAsync(candidateKeys, cancellationToken);
+            cache.PoliciesByContentTypeKey[contentTypeKey] = policies;
+        }
+
+        return policies.Where(p => IsWithinStartNode(rootContent, p.StartNodeKey, cache)).ToList();
+    }
+
+    private bool IsWithinStartNode(IContent content, Guid? startNodeKey, ResolutionCache cache)
     {
         if (startNodeKey is null)
         {
             return true;
         }
 
-        var startNodeId = _entityService.Get(startNodeKey.Value)?.Id;
+        if (!cache.StartNodeIds.TryGetValue(startNodeKey.Value, out var startNodeId))
+        {
+            startNodeId = _entityService.Get(startNodeKey.Value)?.Id;
+            cache.StartNodeIds[startNodeKey.Value] = startNodeId;
+        }
+
         if (startNodeId is null)
         {
             return false;
@@ -178,5 +206,19 @@ internal sealed class ContentCheckResolutionService : IContentCheckResolutionSer
         }
 
         return rules;
+    }
+
+    /// <summary>
+    /// Per-<see cref="ResolveAsync"/>-call memoization, so a page with many instances of the same
+    /// element type (or a policy revisiting the same content type via several nested paths) pays
+    /// for each content-type/policy/start-node lookup once, not once per instance.
+    /// </summary>
+    private sealed class ResolutionCache
+    {
+        public Dictionary<Guid, IContentType?> ContentTypes { get; } = [];
+
+        public Dictionary<Guid, IReadOnlyList<ContentCheckPolicy>> PoliciesByContentTypeKey { get; } = [];
+
+        public Dictionary<Guid, int?> StartNodeIds { get; } = [];
     }
 }
