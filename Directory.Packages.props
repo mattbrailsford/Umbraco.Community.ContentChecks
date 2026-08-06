@@ -4,13 +4,14 @@
     <NoWarn>NU1507</NoWarn>
   </PropertyGroup>
   <ItemGroup>
-    <!-- Umbraco CMS (v18 floor, per plan §1 — no core seams needed, but v17 multi-targeting is deferred) -->
-    <PackageVersion Include="Umbraco.Cms" Version="[18.0.0,19)" />
-    <PackageVersion Include="Umbraco.Cms.Api.Common" Version="[18.0.0,19)" />
-    <PackageVersion Include="Umbraco.Cms.Api.Management" Version="[18.0.0,19)" />
-    <PackageVersion Include="Umbraco.Cms.Infrastructure" Version="[18.0.0,19)" />
-    <PackageVersion Include="Umbraco.Cms.Web.Common" Version="[18.0.0,19)" />
-    <PackageVersion Include="Umbraco.Cms.Tests.Integration" Version="[18.0.0,19)" />
+    <!-- Umbraco CMS — this line (v18/dev) tracks the v18 major only. v17 is maintained
+         independently on v17/dev; see docs/overview.md §1 for the branch model. -->
+    <PackageVersion Include="Umbraco.Cms" Version="[18.0.0,18.999.999)" />
+    <PackageVersion Include="Umbraco.Cms.Api.Common" Version="[18.0.0,18.999.999)" />
+    <PackageVersion Include="Umbraco.Cms.Api.Management" Version="[18.0.0,18.999.999)" />
+    <PackageVersion Include="Umbraco.Cms.Infrastructure" Version="[18.0.0,18.999.999)" />
+    <PackageVersion Include="Umbraco.Cms.Web.Common" Version="[18.0.0,18.999.999)" />
+    <PackageVersion Include="Umbraco.Cms.Tests.Integration" Version="[18.0.0,18.999.999)" />
     <!-- Test -->
     <PackageVersion Include="coverlet.collector" Version="6.0.4" />
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.5.1" />

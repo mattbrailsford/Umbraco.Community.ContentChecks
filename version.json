@@ -9,8 +9,9 @@
     "semVer": 2
   },
   "publicReleaseRefSpec": [
-    "^refs/heads/main$",
-    "^refs/heads/release/"
+    "^refs/heads/(v\\d+/)?main$",
+    "^refs/heads/(v\\d+/)?hotfix/",
+    "^refs/heads/(v\\d+/)?release/"
   ],
   "cloudBuild": {
     "buildNumber": {
