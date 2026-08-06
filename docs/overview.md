@@ -1,6 +1,6 @@
 # Umbraco.Community.ContentChecks — Overview
 
-**Status:** Draft, pre-build. **This is the `v18/dev` branch** (the default branch) — targets Umbraco CMS v18 only; v17 is maintained independently on the sibling `v17/dev` branch, see §1's CMS floor & branch model row. Phase 0 is complete on this branch. Phase 1 is built (two gaps open, see [Core Contract](core-contract-spec.md) §7); Phase 2 is actionable now that the contract it builds on is real, not just designed. Phases 3+ still need re-planning once Phase 2 is real too.
+**Status:** Draft, pre-build. **This is the `v18/dev` branch** (the default branch) — targets Umbraco CMS v18 only; v17 is maintained independently on the sibling `v17/dev` branch, see §1's CMS floor & branch model row. Phase 0 is complete on this branch. Phase 1 is built (two gaps open, see [Core Contract](core-contract-spec.md) §7). Phase 2 is now also built (two gaps open, see [Policy Resolution](policy-resolution-spec.md)'s Status line — no real-`IContent` test, and folder delete-with-children is unconfirmed). Phases 3+ still need re-planning now that Phase 2 is real too, not just designed.
 **Owner:** Matt Brailsford
 
 This is the mainline document — vision, naming, cross-cutting decisions, and the roadmap linking out to a spec per feature area. It doesn't duplicate the detail in those specs; it's the map, not the territory.
@@ -97,7 +97,7 @@ Umbraco.Community.ContentChecks/
 │   ├── Umbraco.Community.ContentChecks.Core/          # contract, runner, built-in checks, cache, ported config infra
 │   ├── Umbraco.Community.ContentChecks.Web/           # Management API controllers
 │   ├── Umbraco.Community.ContentChecks.Web.StaticAssets/Client/   # Lit + TS backoffice UI
-│   ├── Umbraco.Community.ContentChecks.Persistence*/  # Phase 2 decided DB storage — EF Core + SQL Server + SQLite
+│   ├── Umbraco.Community.ContentChecks.Persistence*/  # Phase 2, built — EF Core + SQL Server + SQLite
 │   ├── Umbraco.Community.ContentChecks.AI/            # Phase 5 — AI-judged check, depends on Umbraco.AI (NuGet)
 │   ├── Umbraco.Community.ContentChecks.Automate/      # bridge to Umbraco.Automate, see Automate Integration spec
 │   ├── Umbraco.Community.ContentChecks.Deploy/        # bridge to Umbraco Deploy, see Deploy Integration spec
@@ -116,7 +116,7 @@ Umbraco.Community.ContentChecks/
 |---|---|---|
 | 0 — Bootstrap | (below) | **Complete on this branch** |
 | 1 — Contract, runner, two proving checks | [Core Contract](core-contract-spec.md) | Built and passing its own tests; two gaps open (see that spec's §7) |
-| 2 — Check policies & configuration | [Policy Resolution](policy-resolution-spec.md) | Design settled; not yet built |
+| 2 — Check policies & configuration | [Policy Resolution](policy-resolution-spec.md) | Built and unit-tested; real-`IContent` integration test still open (see that spec's Status line) |
 | 3 — Management API & backoffice UI | [Management API & UI](management-api-ui-spec.md) | Sketch only |
 | 4 — Triggers | [Triggers](triggers-spec.md) | Sketch only |
 | 5 — `Umbraco.Community.ContentChecks.AI` | [AI Integration](ai-integration-spec.md) | Sketch only |

@@ -1,6 +1,9 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/Umbraco.Community.ContentChecks.Core/Umbraco.Community.ContentChecks.Core.csproj" />
+    <Project Path="src/Umbraco.Community.ContentChecks.Persistence/Umbraco.Community.ContentChecks.Persistence.csproj" />
+    <Project Path="src/Umbraco.Community.ContentChecks.Persistence.SqlServer/Umbraco.Community.ContentChecks.Persistence.SqlServer.csproj" />
+    <Project Path="src/Umbraco.Community.ContentChecks.Persistence.Sqlite/Umbraco.Community.ContentChecks.Persistence.Sqlite.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Umbraco.Test.ContentChecks.Integration/Umbraco.Test.ContentChecks.Integration.csproj" />
