@@ -38,14 +38,12 @@ public sealed class RequiredPropertyCheck : ContentCheckBase<RequiredPropertyChe
     }
 
     /// <inheritdoc />
-    public override Task<ContentCheckResult> EvaluateAsync(
+    protected override Task<ContentCheckResult> EvaluateAsync(
         ContentCheckContext context,
-        ContentCheckConfig config,
+        RequiredPropertyCheckConfig config,
         CancellationToken cancellationToken)
     {
-        var checkConfig = ResolveConfig(config) ?? new RequiredPropertyCheckConfig();
-
-        if (string.IsNullOrEmpty(checkConfig.PropertyAlias))
+        if (string.IsNullOrEmpty(config.PropertyAlias))
         {
             return Task.FromResult(new ContentCheckResult
             {
@@ -56,34 +54,34 @@ public sealed class RequiredPropertyCheck : ContentCheckBase<RequiredPropertyChe
 
         var target = new ContentCheckTarget
         {
-            PropertyAlias = checkConfig.PropertyAlias,
+            PropertyAlias = config.PropertyAlias,
             Culture = context.Culture,
             Segment = context.Segment,
         };
 
-        if (!context.Content.HasProperty(checkConfig.PropertyAlias))
+        if (!context.Content.HasProperty(config.PropertyAlias))
         {
             return Task.FromResult(new ContentCheckResult
             {
                 Status = ContentCheckStatus.NotApplicable,
-                Message = $"This content type has no '{checkConfig.PropertyAlias}' property.",
+                Message = $"This content type has no '{config.PropertyAlias}' property.",
                 Targets = [target],
             });
         }
 
-        var value = context.Content.GetValue<string>(checkConfig.PropertyAlias, context.Culture, context.Segment);
+        var value = context.Content.GetValue<string>(config.PropertyAlias, context.Culture, context.Segment);
 
         return Task.FromResult(string.IsNullOrWhiteSpace(value)
             ? new ContentCheckResult
             {
                 Status = ContentCheckStatus.Fail,
-                Message = $"'{checkConfig.PropertyAlias}' has no value.",
+                Message = $"'{config.PropertyAlias}' has no value.",
                 Targets = [target],
             }
             : new ContentCheckResult
             {
                 Status = ContentCheckStatus.Pass,
-                Message = $"'{checkConfig.PropertyAlias}' has a value.",
+                Message = $"'{config.PropertyAlias}' has a value.",
                 Targets = [target],
             });
     }

@@ -82,8 +82,37 @@ public abstract class ContentCheckBase<TConfig> : IContentCheck
     }
 
     /// <inheritdoc />
-    public abstract Task<ContentCheckResult> EvaluateAsync(
+    /// <remarks>
+    /// Resolves the raw <see cref="ContentCheckConfig"/> into a typed, defaulted <c>TConfig</c>
+    /// once, then hands it to <see cref="EvaluateAsync(ContentCheckContext, TConfig, CancellationToken)"/>
+    /// — every real check overrides that one instead, so the "resolve, then fall back to a
+    /// default instance" step doesn't get repeated in every check's own body.
+    /// </remarks>
+    public Task<ContentCheckResult> EvaluateAsync(
         ContentCheckContext context,
         ContentCheckConfig config,
+        CancellationToken cancellationToken)
+        => EvaluateAsync(context, ResolveConfig(config) ?? CreateDefaultConfig(), cancellationToken);
+
+    /// <summary>
+    /// Evaluates the check against a single content snapshot, with its configuration already
+    /// resolved to <typeparamref name="TConfig"/> and defaulted (via the config type's own
+    /// property initializers) if none was stored. What a check author actually overrides.
+    /// </summary>
+    /// <param name="context">The content being evaluated, plus culture/segment.</param>
+    /// <param name="config">The check's resolved, typed configuration.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The evaluation result.</returns>
+    protected abstract Task<ContentCheckResult> EvaluateAsync(
+        ContentCheckContext context,
+        TConfig config,
         CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Builds the default <typeparamref name="TConfig"/> instance — the same instance the
+    /// config schema reads its per-field default values from, so an unconfigured rule behaves
+    /// exactly as its schema already advertises, not some separately-invented fallback.
+    /// </summary>
+    private static TConfig CreateDefaultConfig()
+        => (TConfig)Activator.CreateInstance(typeof(TConfig))!;
 }
