@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+
+  <PropertyGroup>
+    <Title>Umbraco Content Checks — Static Assets</Title>
+    <Description>Backoffice UI static assets for Umbraco Content Checks.</Description>
+    <Company>Matt Brailsford</Company>
+    <Authors>Matt Brailsford</Authors>
+    <Copyright>Copyright © Matt Brailsford $([System.DateTime]::Today.ToString('yyyy'))</Copyright>
+    <Product>Umbraco Content Checks</Product>
+    <PackageProjectUrl>https://github.com/mattbrailsford/Umbraco.Community.ContentChecks</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/mattbrailsford/Umbraco.Community.ContentChecks</RepositoryUrl>
+    <PackageTags>umbraco content-checks content quality validation umbraco-marketplace</PackageTags>
+    <StaticWebAssetBasePath>App_Plugins/ContentChecks</StaticWebAssetBasePath>
+    <AddRazorSupportForMvc>false</AddRazorSupportForMvc>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Don't include the client folder as part of the packaged nupkg -->
+    <Content Remove="Client\**" />
+    <Content Include="Client\package.json" Pack="false" />
+    <Content Include="Client\tsconfig.app.json" Pack="false" />
+    <Content Include="Client\tsconfig.json" Pack="false" />
+    <None Include="Client\public\umbraco-package.json" Pack="false" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="wwwroot\" />
+  </ItemGroup>
+
+</Project>

@@ -10,7 +10,9 @@ using Umbraco.Cms.Core.DependencyInjection;
 using Umbraco.Cms.Core.Mapping;
 using Umbraco.Community.ContentChecks.Core;
 using Umbraco.Community.ContentChecks.Web;
+using Umbraco.Community.ContentChecks.Web.Api.Common.Configuration;
 using Umbraco.Community.ContentChecks.Web.Api.Management.ApplicableChecks.Mapping;
+using Umbraco.Community.ContentChecks.Web.Api.Management.CheckTypes.Mapping;
 using Umbraco.Community.ContentChecks.Web.Api.Management.Evaluation.Mapping;
 using Umbraco.Community.ContentChecks.Web.Api.Management.Folders.Mapping;
 using Umbraco.Community.ContentChecks.Web.Api.Management.Policies.Mapping;
@@ -47,7 +49,8 @@ public static class ContentChecksWebBuilderExtensions
                 .WithTitle(Constants.ManagementApi.ApiTitle)
                 .WithUiTitle(Constants.ManagementApi.ApiTitle)
                 .WithJsonOptions(Constants.ManagementApi.ApiName)
-                .WithBackOfficeAuthentication();
+                .WithBackOfficeAuthentication()
+                .ConfigureOpenApiOptions(options => options.AddSchemaTransformer<ContentChecksEnumSchemaTransformer>());
         });
 
         // Umbraco's own equivalent built-in policies (SectionAccessContent, etc.) build on an
@@ -71,7 +74,8 @@ public static class ContentChecksWebBuilderExtensions
             .Add<PolicyMapDefinition>()
             .Add<FolderMapDefinition>()
             .Add<ApplicableChecksMapDefinition>()
-            .Add<EvaluationMapDefinition>();
+            .Add<EvaluationMapDefinition>()
+            .Add<CheckTypesMapDefinition>();
 
         return builder;
     }

@@ -1,0 +1,1 @@
+export const CONTENT_CHECKS_APPLICABLE_CHECKS_WORKSPACE_VIEW_ALIAS = "ContentChecks.WorkspaceView.Document.ApplicableChecks";

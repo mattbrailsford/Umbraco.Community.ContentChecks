@@ -1,0 +1,20 @@
+{
+    "id": "Umbraco.Community.ContentChecks",
+    "name": "Content Checks",
+    "version": "0.0.0",
+    "allowTelemetry": true,
+    "extensions": [
+        {
+            "name": "Content Checks",
+            "alias": "ContentChecks.Bundle",
+            "type": "bundle",
+            "js": "/App_Plugins/ContentChecks/content-checks-manifests.js"
+        },
+        {
+            "type": "backofficeEntryPoint",
+            "name": "Content Checks Backoffice Entry Point",
+            "alias": "ContentChecks.BackofficeEntryPoint",
+            "js": "/App_Plugins/ContentChecks/content-checks-app.js"
+        }
+    ]
+}
