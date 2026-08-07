@@ -117,7 +117,7 @@ Umbraco.Community.ContentChecks/
 | 0 — Bootstrap | (below) | **Complete on this branch** |
 | 1 — Contract, runner, two proving checks | [Core Contract](core-contract-spec.md) | Built and passing its own tests; two gaps open (see that spec's §7) |
 | 2 — Check policies & configuration | [Policy Resolution](policy-resolution-spec.md) | Built and unit-tested; real-`IContent` integration test still open (see that spec's Status line) |
-| 3 — Management API & backoffice UI | [Management API & UI](management-api-ui-spec.md) | Sketch only |
+| 3 — Management API & backoffice UI | [Management API & UI](management-api-ui-spec.md) | Design settled; not yet built |
 | 4 — Triggers | [Triggers](triggers-spec.md) | Sketch only |
 | 5 — `Umbraco.Community.ContentChecks.AI` | [AI Integration](ai-integration-spec.md) | Sketch only |
 | 6 — Backtest | [Management API & UI](management-api-ui-spec.md) | Sketch only |

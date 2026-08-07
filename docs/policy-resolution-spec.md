@@ -56,7 +56,7 @@ Each row needs its provenance labeled plainly, because the three mechanisms are 
 - **Via composition `[X]`** — policy targets a type this one composes from. Runs against this type's *own* snapshot, since composition flattens properties onto the root — no nesting involved.
 - **Via nested element `[Y]` in property `[Z]`** — policy targets an element type discoverable inside this type's own block structure. Runs against a separate, nested snapshot.
 
-**Presentation, sketched — see [Management API & UI](management-api-ui-spec.md) for the build detail:** a Content Checks backoffice section for authoring policies (content-type picker — one type, doc type or element type — start node picker, rules list with schema-driven config forms per [Core Contract](core-contract-spec.md)); an Effective Checks read-only view, ideally surfaced directly on the Doc Type/Element Type editor (a bigger integration than anything else in this project — extending a core Umbraco editor rather than building inside this package's own section — with a fallback of hosting the same computed view inside Content Checks' own section if that proves too invasive to core UI).
+**Presentation, sketched — see [Management API & UI](management-api-ui-spec.md) for the build detail:** a Content Checks backoffice section for authoring policies (content-type picker — one type, doc type or element type — start node picker, rules list with schema-driven config forms per [Core Contract](core-contract-spec.md)). **Superseded, not just extended, by §7 below:** this section's original plan put a schema-level Effective Checks read-only view on the Doc Type/Element Type editor. The Phase 3 pre-design conversation replaced that with a per-*item* view built on resolution instead (§7) — more accurate (real start-node filtering, real cascaded instances, no "shows up but might not really apply" case), and it's what actually ships in v1. The schema-level view described here is real, tested Core capability (§5) that simply isn't surfaced by any v1 UI — see §7 for why that's a deliberate scope call, not an oversight.
 
 ## 4. Folder organization for the backoffice tree
 
@@ -85,7 +85,7 @@ public sealed class ContentCheckPolicyFolder
 
 **Also needs Deploy support, same reasoning as the policy itself.** A folder is schema-level organizational config, no different in kind from the policy it contains — see [Deploy Integration](deploy-integration-spec.md) §4, updated to cover both entities.
 
-**Open, not decided: delete-with-children behavior.** Automate's `DeleteWorkspaceGroupController` cascades — deleting a folder deletes every child folder and automation underneath it. That's a reasonable default for automations; it's a heavier default for check policies, which govern real publish-blocking behavior — silently deleting a dozen policies because someone deleted their containing folder is a bigger footgun here than losing some automations. **Recommendation: block delete if the folder has children** (policies or subfolders), requiring an editor to empty it first — mirrors how Umbraco's native Data Type folders behave, safer than cascading, at the cost of one extra step. Not yet confirmed.
+**Decided (Phase 3 pre-design): block delete-with-children, don't cascade.** Automate's `DeleteWorkspaceGroupController` cascades — deleting a folder deletes every child folder and automation underneath it. That's a reasonable default for automations; it's a heavier default for check policies, which govern real publish-blocking behavior — silently deleting a dozen `Blocking` policies because someone deleted their containing folder is a bigger, more surprising footgun here than losing some automations. `DeleteFolderAsync` ([Policy Resolution](policy-resolution-spec.md) §5's `IContentCheckPolicyService`) rejects deleting a folder that still has policies or subfolders in it, requiring an editor to empty it first — mirrors how Umbraco's native Data Type folders already behave, at the cost of one extra step.
 
 ## 5. Phase 2 — Build checklist
 
@@ -107,3 +107,111 @@ public sealed class ContentCheckPolicyFolder
 - [x] Tests: direct match, composition match (including transitive, two-hop), cascading match at more than one nesting depth, a type governed by two independent policies at once (composition-wide baseline + type-specific refinement, per §2) with no relationship between the records, Effective Checks provenance labeling for all three mechanisms on one type, the cascading cycle guard, and **cascading cost**: a page with N instances of an element type carrying a `Metered` rule is pinned down as exactly N resolved targets in a test — accept-the-cost is the deliberate, visible choice made for v1 (open question 7 in the [Overview](overview.md)), not an accident of traversal order. All against mocked `IContentType`/`IContent`, not a real one — the same real-`IContent` gap [Core Contract](core-contract-spec.md) Phase 1 left open.
 
 **Acceptance:** an editor can create a check policy through the API, attach a required-property check to a document type, and the resolution service returns it for a matching content item — **and**, separately, attach a check to an element type used inside a Block List, and confirm it resolves and runs against every instance of that element found anywhere in the item's property values, at any nesting depth — **and**, attach a policy to a composition, confirm every composing type picks it up automatically (including transitively through a second composition), and confirm the Effective Checks computation correctly labels the provenance of all three kinds of match for a type governed by several policies at once. **Met, against mocked `IContentType`/`IContent`** — no Management API exists yet (that's Phase 3), so "through the API" is exercised as "through `IContentCheckPolicyService`" for now; the real-`IContent` integration-test gap is real, not glossed over (see the Status line above).
+
+## 6. Evaluation — the aggregate report and the primary entry point (Phase 3 pre-design)
+
+Settles the "deferred until the UI is actually being built" line in §1 and the aggregation bullet in §5's checklist, now that [Management API & UI](management-api-ui-spec.md) is the thing being designed. Recorded here, not there, because the type doing the work lives in Core, not Web — see below for why.
+
+**`ContentCheckResolvedTarget` gains a full ancestor path, not just its immediate containing property.** `ContainingPropertyAlias` (a single string) is enough to say "this came from the `content` property," but not enough to say *which* block, at *which* depth, when cascading goes more than one level deep — a Feature Grid's `features` property containing a Feature Card that itself has its own nested property. Replaced with an ordered, root-to-here list of steps:
+
+```csharp
+public sealed class ContentCheckLocationStep
+{
+    public required string PropertyAlias { get; init; }
+    public required Guid ElementKey { get; init; }
+}
+```
+
+`ContentCheckResolvedTarget.Path` is `IReadOnlyList<ContentCheckLocationStep>` — empty for the root item's own target, one entry per level of nesting otherwise. The resolution service already has this for free at the exact moment it discovers each element during the cascading walk (§1); this was always where it belonged, per the cuts table in [Core Contract](core-contract-spec.md) — an ordered list of `{PropertyAlias, ElementKey}` steps is precisely what that table predicted this would need to become, once a real UI need made it concrete instead of hypothetical.
+
+**One honest cost, called out rather than glossed over:** this changes a type Phase 2 already shipped. Justified because `ContentCheckResolvedTarget` is an internal resolution-service output — nothing outside this package constructs one or depends on its current shape yet — so the change is cheap now and only gets more expensive to make later, not a case of quietly reopening a decided contract.
+
+**A new Core service, `IContentCheckEvaluationService`, is the primary entry point — not a method bolted onto `IContentCheckPolicyService`.** The obvious-sounding shortcut ("just add a `Check` method to the policy service, so callers don't need to know about a separate runner type") was considered and rejected: `IContentCheckPolicyService` is CRUD on policies and folders by key, matching this project's `[Action][Entity]Async` convention throughout — "run checks against a piece of content" isn't a policy operation and doesn't belong on that interface, any more than `IAIProfileService` (Umbraco.AI's own profile CRUD) is where `IAIChatService` (Umbraco.AI's own "primary developer interface... resolves profiles and creates configured clients automatically") lives. Same two-tier split here: `IContentCheckPolicyService` stays pure CRUD; `IContentCheckEvaluationService` is the separate, prominently-named front door, mirroring `IAIChatService`'s role exactly.
+
+```csharp
+public interface IContentCheckEvaluationService
+{
+    Task<ContentCheckAggregateReport> EvaluateAsync(
+        IContent content,
+        string? culture = null,
+        string? segment = null,
+        IProgress<ContentCheckEvaluationProgress>? progress = null,
+        CancellationToken cancellationToken = default);
+}
+
+// Reports how many resolved targets (the root item, plus each nested element with a matching
+// rule) have finished, as they finish -- coarse-grained on purpose, since finer-than-one-target
+// progress would mean changing the Phase 1 runner, which stays exactly as scoped.
+public sealed class ContentCheckEvaluationProgress
+{
+    public required int TargetsTotal { get; init; }
+    public required int TargetsCompleted { get; init; }
+}
+
+public sealed class ContentCheckAggregateReport
+{
+    public required Guid ContentKey { get; init; }
+    public required IReadOnlyList<ContentCheckAggregateReportEntry> Entries { get; init; }
+}
+
+public sealed class ContentCheckAggregateReportEntry
+{
+    public required ContentCheckReportEntry Entry { get; init; }               // unchanged, from Core Contract §4
+    public required IReadOnlyList<ContentCheckLocationStep> Path { get; init; } // empty = the root item itself
+}
+```
+
+`EvaluateAsync` composes what already exists and nothing more: calls `IContentCheckResolutionService.ResolveAsync` for every target, runs each one through the unchanged `IContentCheckRunner.RunAsync` ([Core Contract](core-contract-spec.md) §4), and zips each target's report entries with its `Path` into one `ContentCheckAggregateReport`. No new check-running logic — it's glue over the two things this package already built.
+
+**Why Core, not Web, the same question asked of it directly and worth recording the answer to:** the resolution service already lives in Core. Automate ([Automate Integration](automate-integration-spec.md)) needs this exact same aggregate for its own branching logic and, like [AI Integration](ai-integration-spec.md) calling the runner in-process rather than through HTTP, already depends on Core directly — so putting the aggregate type and the compose-it-all logic in Core means both the Management API and Automate get it for free, and the Management API becomes a thin HTTP wrapper that calls this service and serializes the result, the same shape every other cross-cutting concern in this package already takes.
+
+**`progress` is optional and free for every caller that doesn't need it.** Automate, tests, and anything else calling `EvaluateAsync` in-process just never pass it. Only the Management API's live-run endpoint ([Management API & UI](management-api-ui-spec.md)) passes one, to drive the run-tracking it needs for its own polling/SSE surface — that mechanism is a Web-layer concern, not a Core one, and is speced there rather than here.
+
+**Whole-report status is two separate questions, not one — collapsing them loses an answer.** "How bad is it" (for the results-panel badge) and "should this block the publish" (for Automate's branching) don't always agree: a page can have a real, failing check that's only `Advisory` — worth showing red in a badge, but nothing a gate should stop on. So `ContentCheckAggregateReport` carries two computed properties, not one:
+
+```csharp
+public sealed class ContentCheckAggregateReport
+{
+    public required Guid ContentKey { get; init; }
+    public required IReadOnlyList<ContentCheckAggregateReportEntry> Entries { get; init; }
+
+    public ContentCheckStatus OverallStatus => /* worst status across every entry, everywhere */;
+    public bool HasBlockingFailure => /* any entry where Mode == Blocking and Status == Fail */;
+}
+```
+
+`HasBlockingFailure` isn't new machinery — it's the exact condition [Core Contract](core-contract-spec.md) §4's runner already computes internally to short-circuit metered checks (`blockingFreeFailure`), just widened from "free rules only" to every rule in every snapshot now that the aggregate has all of them.
+
+`OverallStatus` needs an explicit severity order, since the five `ContentCheckStatus` values aren't a simple good/bad scale: **`Fail` > `Warn` > `NotEvaluated` > `Pass` > `NotApplicable`.** `NotApplicable` sits lowest deliberately — it means the check genuinely didn't apply (the property doesn't exist), not that something's wrong; a report that's entirely `NotApplicable` should read as "nothing here to check," not "fine." Both properties are computed from `Entries`, never stored independently, so there's nothing to keep in sync by hand.
+
+## 7. Applicable Checks — resolution keeps its reasoning, not just its answer (Phase 3 pre-design)
+
+**Started from a UI question that exposed a real gap: what should a content item's own checks panel show *before* anyone presses Run?** The first answer reached for was the schema-level Effective Checks service (§3) — but that's the wrong tool for this: it's computed for a *type*, with no live content, so it has no way to apply a policy's start-node scoping. A policy restricted to `/blog/` shows up in Effective Checks for Blog Post everywhere that type is used, whether or not *this specific page* is under `/blog/`. Worse, that inaccuracy isn't limited to cascading matches — any policy can carry a `StartNodeKey`, so it affects Direct and Composition rows just as much. A per-item panel built on schema-level data would routinely show checks that don't actually apply to the page someone's looking at.
+
+**The fix was already sitting in `IContentCheckResolutionService.ResolveAsync` — it just throws away the one thing a preview needs.** Resolution already takes a real content item and applies real start-node filtering (§1, §5) — nothing it returns can suffer the "shows up here but doesn't really apply" problem, because it only ever walks real matches against a real item's real path. It just currently hands back a flat list of resolved rules to run, discarding *why* each one matched. Keep that reasoning instead of throwing it away, and resolution's own output *is* the accurate per-item picture — no separate service, no second source of truth to keep consistent with the first.
+
+```csharp
+public sealed class ContentCheckResolvedTarget
+{
+    public required IContentCheckSnapshot Snapshot { get; init; }
+    public required IReadOnlyList<ContentCheckResolvedPolicyMatch> PolicyMatches { get; init; }
+    public required IReadOnlyList<ContentCheckLocationStep> Path { get; init; }
+}
+
+public sealed class ContentCheckResolvedPolicyMatch
+{
+    public required ContentCheckPolicy Policy { get; init; }
+    public required ContentCheckEffectiveCheckProvenance Provenance { get; init; } // reuses §3's enum
+    public required IReadOnlyList<ResolvedContentCheckRule> Rules { get; init; }
+}
+```
+
+`ContentCheckResolvedTarget.Rules` (the flat list §6 originally showed) is replaced by `PolicyMatches`, grouped by which policy contributed the rules and why. `IContentCheckResolutionService.ResolveAsync`'s own signature doesn't change — only what its result type carries.
+
+**One structure, two honest uses, not two representations to keep in sync:** [Management API & UI](management-api-ui-spec.md)'s per-item panel renders `PolicyMatches` directly, before anything has run, as pending rows grouped by provenance. `IContentCheckEvaluationService.EvaluateAsync` (§6) flattens the same `PolicyMatches` into rules for the unchanged `IContentCheckRunner` ([Core Contract](core-contract-spec.md) §4) — the exact data a preview shows is the exact data that gets executed, not an approximation of it.
+
+**This also resolves the cascading-cardinality question a naive preview would otherwise have to solve separately.** A schema-level view can only say "this check applies via the Testimonial element type, wherever it appears" — one row regardless of how many Testimonials actually exist on a given page. Resolution has no such ambiguity: if a page has 3 real Testimonial instances, `ResolveAsync` already produces 3 separate targets, each its own `PolicyMatches` and its own real `Path`. A per-item preview built on resolution is already expanded to real instances; there's nothing to fan out after the fact.
+
+**Effective Checks (§3) isn't superseded by this — it answers a different question that resolution genuinely can't.** "What could ever apply to this type, anywhere it's used" (schema governance, useful the moment someone edits a composition or a Block List config) and "what actually applies to this specific page, right now" (this section) aren't the same question, and one can't substitute for the other — resolution has no opinion about a type in the abstract, only about a real item. That said, [Management API & UI](management-api-ui-spec.md) has descoped the schema-level question's UI surface for v1 (no dedicated endpoint, no Doc Type editor tab) — not because the question is invalid, but because the per-item panel this section describes is where the actual v1 value is, and the schema-level `IContentCheckEffectiveChecksService` this project already built and tested is cheap to leave in place, unsurfaced, until something concrete needs it exposed.
+
+**One honest cost, same shape as this doc's other two:** this reworks `ContentCheckResolvedTarget` for a third time since Phase 2 shipped it. Justified for the same reason as the first two — nothing outside the package depends on its current shape yet.
