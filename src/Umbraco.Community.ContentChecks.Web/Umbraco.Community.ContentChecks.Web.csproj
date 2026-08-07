@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Title>Umbraco Content Checks — Web</Title>
+    <Description>Management API for Umbraco Content Checks.</Description>
+    <Company>Matt Brailsford</Company>
+    <Authors>Matt Brailsford</Authors>
+    <Copyright>Copyright © Matt Brailsford $([System.DateTime]::Today.ToString('yyyy'))</Copyright>
+    <Product>Umbraco Content Checks</Product>
+    <PackageProjectUrl>https://github.com/mattbrailsford/Umbraco.Community.ContentChecks</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/mattbrailsford/Umbraco.Community.ContentChecks</RepositoryUrl>
+    <PackageTags>umbraco content-checks content quality validation umbraco-marketplace</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Umbraco.Cms.Api.Management" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Umbraco.Community.ContentChecks.Core\Umbraco.Community.ContentChecks.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+      <_Parameter1>Umbraco.Test.ContentChecks.Unit</_Parameter1>
+    </AssemblyAttribute>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+      <_Parameter1>Umbraco.Test.ContentChecks.Integration</_Parameter1>
+    </AssemblyAttribute>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+      <_Parameter1>DynamicProxyGenAssembly2</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
+
+</Project>
