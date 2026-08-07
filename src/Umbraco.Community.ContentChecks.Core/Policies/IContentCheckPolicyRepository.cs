@@ -56,6 +56,16 @@ internal interface IContentCheckPolicyRepository
     Task<bool> DeleteAsync(Guid key, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Checks whether any policy has the given folder as its <see cref="ContentCheckPolicy.ParentFolderKey"/>
+    /// — an existence check, not a full load, so a folder-emptiness check doesn't pay for every
+    /// policy in the system just to answer yes/no.
+    /// </summary>
+    /// <param name="folderKey">The folder's key.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns><c>true</c> if at least one policy lives directly in this folder.</returns>
+    Task<bool> PolicyExistsInFolderAsync(Guid folderKey, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Gets a folder by its key.
     /// </summary>
     /// <param name="key">The folder's key.</param>
@@ -85,4 +95,14 @@ internal interface IContentCheckPolicyRepository
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns><c>true</c> if a folder was deleted; otherwise <c>false</c>.</returns>
     Task<bool> DeleteFolderAsync(Guid key, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Checks whether any folder has the given folder as its own
+    /// <see cref="ContentCheckPolicyFolder.ParentFolderKey"/> — an existence check, not a full
+    /// load, same reasoning as <see cref="PolicyExistsInFolderAsync"/>.
+    /// </summary>
+    /// <param name="folderKey">The folder's key.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns><c>true</c> if at least one subfolder lives directly in this folder.</returns>
+    Task<bool> FolderExistsInFolderAsync(Guid folderKey, CancellationToken cancellationToken = default);
 }

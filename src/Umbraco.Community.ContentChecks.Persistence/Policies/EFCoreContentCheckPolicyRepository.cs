@@ -94,6 +94,16 @@ internal sealed class EFCoreContentCheckPolicyRepository : IContentCheckPolicyRe
         => DeleteEntityAsync<ContentCheckPolicyEntity>(key, cancellationToken);
 
     /// <inheritdoc />
+    public async Task<bool> PolicyExistsInFolderAsync(Guid folderKey, CancellationToken cancellationToken = default)
+    {
+        using IEFCoreScope<ContentChecksDbContext> scope = _scopeProvider.CreateScope();
+        var exists = await scope.ExecuteWithContextAsync(async db =>
+            await db.Policies.AnyAsync(p => p.ParentFolderKey == folderKey, cancellationToken));
+        scope.Complete();
+        return exists;
+    }
+
+    /// <inheritdoc />
     public async Task<ContentCheckPolicyFolder?> GetFolderByKeyAsync(Guid key, CancellationToken cancellationToken = default)
     {
         using IEFCoreScope<ContentChecksDbContext> scope = _scopeProvider.CreateScope();
@@ -140,6 +150,16 @@ internal sealed class EFCoreContentCheckPolicyRepository : IContentCheckPolicyRe
     /// <inheritdoc />
     public Task<bool> DeleteFolderAsync(Guid key, CancellationToken cancellationToken = default)
         => DeleteEntityAsync<ContentCheckPolicyFolderEntity>(key, cancellationToken);
+
+    /// <inheritdoc />
+    public async Task<bool> FolderExistsInFolderAsync(Guid folderKey, CancellationToken cancellationToken = default)
+    {
+        using IEFCoreScope<ContentChecksDbContext> scope = _scopeProvider.CreateScope();
+        var exists = await scope.ExecuteWithContextAsync(async db =>
+            await db.PolicyFolders.AnyAsync(f => f.ParentFolderKey == folderKey, cancellationToken));
+        scope.Complete();
+        return exists;
+    }
 
     /// <summary>
     /// Deletes an entity by its <c>Key</c>, shared by <see cref="DeleteAsync"/> and

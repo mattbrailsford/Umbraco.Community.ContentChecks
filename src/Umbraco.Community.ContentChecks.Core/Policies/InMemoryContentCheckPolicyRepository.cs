@@ -40,6 +40,10 @@ internal sealed class InMemoryContentCheckPolicyRepository : IContentCheckPolicy
         => Task.FromResult(_policies.TryRemove(key, out _));
 
     /// <inheritdoc />
+    public Task<bool> PolicyExistsInFolderAsync(Guid folderKey, CancellationToken cancellationToken = default)
+        => Task.FromResult(_policies.Values.Any(p => p.ParentFolderKey == folderKey));
+
+    /// <inheritdoc />
     public Task<ContentCheckPolicyFolder?> GetFolderByKeyAsync(Guid key, CancellationToken cancellationToken = default)
         => Task.FromResult(_folders.GetValueOrDefault(key));
 
@@ -57,4 +61,8 @@ internal sealed class InMemoryContentCheckPolicyRepository : IContentCheckPolicy
     /// <inheritdoc />
     public Task<bool> DeleteFolderAsync(Guid key, CancellationToken cancellationToken = default)
         => Task.FromResult(_folders.TryRemove(key, out _));
+
+    /// <inheritdoc />
+    public Task<bool> FolderExistsInFolderAsync(Guid folderKey, CancellationToken cancellationToken = default)
+        => Task.FromResult(_folders.Values.Any(f => f.ParentFolderKey == folderKey));
 }

@@ -86,10 +86,12 @@ public interface IContentCheckPolicyService
     /// <summary>
     /// Deletes a folder. Fires <see cref="ContentCheckPolicyFolderDeletingNotification"/> before,
     /// and <see cref="ContentCheckPolicyFolderDeletedNotification"/> after. Returns <c>false</c> if
-    /// no folder with this key exists.
+    /// no folder with this key exists. Blocked, not cascading, when the folder still has policies
+    /// or subfolders — an editor must empty it first.
     /// </summary>
     /// <param name="key">The folder's key.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns><c>true</c> if a folder was deleted; otherwise <c>false</c>.</returns>
+    /// <exception cref="InvalidOperationException">The folder still contains policies or subfolders.</exception>
     Task<bool> DeleteFolderAsync(Guid key, CancellationToken cancellationToken = default);
 }
