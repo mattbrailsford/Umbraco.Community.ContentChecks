@@ -66,6 +66,7 @@ public static class ContentChecksBuilderExtensions
 
         builder.Services.AddSingleton<IContentCheckResolutionService, ContentCheckResolutionService>();
         builder.Services.AddSingleton<IContentCheckEffectiveChecksService, ContentCheckEffectiveChecksService>();
+        builder.Services.AddSingleton<IContentCheckEvaluationService, ContentCheckEvaluationService>();
 
         return builder;
     }

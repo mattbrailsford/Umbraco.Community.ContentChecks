@@ -51,8 +51,9 @@ public class ContentCheckResolutionServiceTests
         var targets = await service.ResolveAsync(content.Object);
 
         Assert.That(targets, Has.Count.EqualTo(1));
-        Assert.That(targets[0].Rules.Select(r => r.Check.Alias), Is.EqualTo(new[] { "required-property" }));
-        Assert.That(targets[0].ContainingPropertyAlias, Is.Null);
+        Assert.That(targets[0].PolicyMatches.SelectMany(m => m.Rules).Select(r => r.Check.Alias), Is.EqualTo(new[] { "required-property" }));
+        Assert.That(targets[0].PolicyMatches.Single().Provenance, Is.EqualTo(ContentCheckEffectiveCheckProvenance.Direct));
+        Assert.That(targets[0].Path, Is.Empty);
     }
 
     [Test]
@@ -82,7 +83,10 @@ public class ContentCheckResolutionServiceTests
         var targets = await service.ResolveAsync(content.Object);
 
         Assert.That(targets, Has.Count.EqualTo(1));
-        Assert.That(targets[0].Rules.Select(r => r.Check.Alias), Is.EqualTo(new[] { "seo-required" }));
+        Assert.That(targets[0].PolicyMatches.SelectMany(m => m.Rules).Select(r => r.Check.Alias), Is.EqualTo(new[] { "seo-required" }));
+        var match = targets[0].PolicyMatches.Single();
+        Assert.That(match.Provenance, Is.EqualTo(ContentCheckEffectiveCheckProvenance.Composition));
+        Assert.That(match.Policy.ContentTypeKey, Is.EqualTo(seoKey));
     }
 
     [Test]
@@ -122,7 +126,7 @@ public class ContentCheckResolutionServiceTests
 
         Assert.That(targets, Has.Count.EqualTo(1));
         Assert.That(
-            targets[0].Rules.Select(r => r.Check.Alias),
+            targets[0].PolicyMatches.SelectMany(m => m.Rules).Select(r => r.Check.Alias),
             Is.EquivalentTo(new[] { "seo-required", "title-length" }));
     }
 
@@ -200,12 +204,19 @@ public class ContentCheckResolutionServiceTests
 
         Assert.That(targets, Has.Count.EqualTo(2));
 
-        var testimonialTarget = targets.Single(t => t.Rules.Any(r => r.Check.Alias == "quote-required"));
-        Assert.That(testimonialTarget.ContainingPropertyAlias, Is.EqualTo("content"));
+        var testimonialTarget = targets.Single(t => t.PolicyMatches.SelectMany(m => m.Rules).Any(r => r.Check.Alias == "quote-required"));
+        Assert.That(testimonialTarget.Path, Has.Count.EqualTo(1));
+        Assert.That(testimonialTarget.Path[0].PropertyAlias, Is.EqualTo("content"));
+        Assert.That(testimonialTarget.Path[0].ElementKey, Is.EqualTo(testimonialInstance.Key));
         Assert.That(testimonialTarget.Snapshot.ContentTypeAlias, Is.EqualTo("testimonial"));
+        Assert.That(testimonialTarget.PolicyMatches.Single().Provenance, Is.EqualTo(ContentCheckEffectiveCheckProvenance.Cascading));
 
-        var featureCardTarget = targets.Single(t => t.Rules.Any(r => r.Check.Alias == "icon-required"));
-        Assert.That(featureCardTarget.ContainingPropertyAlias, Is.EqualTo("nested"));
+        var featureCardTarget = targets.Single(t => t.PolicyMatches.SelectMany(m => m.Rules).Any(r => r.Check.Alias == "icon-required"));
+        Assert.That(featureCardTarget.Path, Has.Count.EqualTo(2));
+        Assert.That(featureCardTarget.Path[0].PropertyAlias, Is.EqualTo("content"));
+        Assert.That(featureCardTarget.Path[0].ElementKey, Is.EqualTo(testimonialInstance.Key));
+        Assert.That(featureCardTarget.Path[1].PropertyAlias, Is.EqualTo("nested"));
+        Assert.That(featureCardTarget.Path[1].ElementKey, Is.EqualTo(featureCardInstance.Key));
         Assert.That(featureCardTarget.Snapshot.ContentTypeAlias, Is.EqualTo("featureCard"));
     }
 
@@ -257,6 +268,7 @@ public class ContentCheckResolutionServiceTests
         var targets = await service.ResolveAsync(content.Object);
 
         Assert.That(targets, Has.Count.EqualTo(3));
-        Assert.That(targets, Has.All.Matches<ContentCheckResolvedTarget>(t => t.Rules.Any(r => r.Check.Alias == "quote-required")));
+        Assert.That(targets, Has.All.Matches<ContentCheckResolvedTarget>(
+            t => t.PolicyMatches.SelectMany(m => m.Rules).Any(r => r.Check.Alias == "quote-required")));
     }
 }

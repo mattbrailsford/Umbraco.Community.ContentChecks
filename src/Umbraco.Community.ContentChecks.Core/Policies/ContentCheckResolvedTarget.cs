@@ -4,11 +4,9 @@ namespace Umbraco.Community.ContentChecks.Core.Policies;
 
 /// <summary>
 /// One snapshot discovered by <see cref="IContentCheckResolutionService"/> — the root document, or
-/// one nested element found by cascading — paired with the rules that apply to it. Feed each of
+/// one nested element found by cascading — paired with every policy that matched it. Feed each of
 /// these into <see cref="IContentCheckRunner"/> exactly as it would run the root document; the
 /// runner needs no changes to support this (see the Policy Resolution spec's cascading section).
-/// Aggregating the resulting reports is a caller concern, deferred until the UI that needs a
-/// specific shape actually exists.
 /// </summary>
 public sealed class ContentCheckResolvedTarget
 {
@@ -18,13 +16,16 @@ public sealed class ContentCheckResolvedTarget
     public required IContentCheckSnapshot Snapshot { get; init; }
 
     /// <summary>
-    /// The rules that apply to this snapshot.
+    /// Every policy that matched this snapshot, grouped with its own provenance and resolved
+    /// rules. This is the accurate, per-item picture a preview needs — nothing here can suffer
+    /// the "shows up but doesn't really apply" problem a schema-level view would have, since it
+    /// only ever reflects real matches against this real item's real path.
     /// </summary>
-    public required IReadOnlyList<ResolvedContentCheckRule> Rules { get; init; }
+    public required IReadOnlyList<ContentCheckResolvedPolicyMatch> PolicyMatches { get; init; }
 
     /// <summary>
-    /// For a nested element, the alias of the property (on whichever type directly contains it)
-    /// it was discovered through. <c>null</c> for the root document's own target.
+    /// The root-to-here chain of nested elements this target was discovered through. Empty for
+    /// the root item's own target; one entry per level of cascading otherwise.
     /// </summary>
-    public string? ContainingPropertyAlias { get; init; }
+    public required IReadOnlyList<ContentCheckLocationStep> Path { get; init; }
 }

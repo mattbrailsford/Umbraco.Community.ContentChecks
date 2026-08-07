@@ -65,13 +65,14 @@ internal sealed class ContentCheckResolutionService : IContentCheckResolutionSer
         }
 
         var rootPolicies = await GetMatchingPoliciesAsync(rootContentType.Key, rootContentType.CompositionKeys(), content, cache, cancellationToken);
-        var rootRules = ResolveRules(rootPolicies);
-        if (rootRules.Count > 0)
+        var rootMatches = BuildPolicyMatches(rootPolicies, rootContentType.Key, cascading: false);
+        if (rootMatches.Count > 0)
         {
             results.Add(new ContentCheckResolvedTarget
             {
                 Snapshot = new ContentCheckSnapshot(content),
-                Rules = rootRules,
+                PolicyMatches = rootMatches,
+                Path = [],
             });
         }
 
@@ -85,7 +86,7 @@ internal sealed class ContentCheckResolutionService : IContentCheckResolutionSer
                     p.PropertyType.VariesBySegment() ? segment : null)))
             .ToList();
 
-        await CascadeAsync(rootProperties, content, results, cache, cancellationToken);
+        await CascadeAsync(rootProperties, content, results, cache, cancellationToken, path: []);
 
         return results;
     }
@@ -95,7 +96,8 @@ internal sealed class ContentCheckResolutionService : IContentCheckResolutionSer
         IContent rootContent,
         List<ContentCheckResolvedTarget> results,
         ResolutionCache cache,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        IReadOnlyList<ContentCheckLocationStep> path)
     {
         foreach (var property in properties)
         {
@@ -112,19 +114,24 @@ internal sealed class ContentCheckResolutionService : IContentCheckResolutionSer
 
             foreach (var instance in source.GetElementInstances(property.RawValue))
             {
+                var stepPath = new List<ContentCheckLocationStep>(path)
+                {
+                    new() { PropertyAlias = property.Alias, ElementKey = instance.Key },
+                };
+
                 var elementType = await GetContentTypeAsync(instance.ContentTypeKey, cache);
                 if (elementType is not null)
                 {
                     var matchingPolicies = await GetMatchingPoliciesAsync(
                         elementType.Key, elementType.CompositionKeys(), rootContent, cache, cancellationToken);
-                    var rules = ResolveRules(matchingPolicies);
-                    if (rules.Count > 0)
+                    var matches = BuildPolicyMatches(matchingPolicies, elementType.Key, cascading: true);
+                    if (matches.Count > 0)
                     {
                         results.Add(new ContentCheckResolvedTarget
                         {
                             Snapshot = new ContentCheckElementInstanceSnapshot(instance, rootContent.VersionId),
-                            Rules = rules,
-                            ContainingPropertyAlias = property.Alias,
+                            PolicyMatches = matches,
+                            Path = stepPath,
                         });
                     }
                 }
@@ -132,7 +139,7 @@ internal sealed class ContentCheckResolutionService : IContentCheckResolutionSer
                 var nestedProperties = instance.Values
                     .Select(v => (v.Alias, v.PropertyEditorAlias, (object?)v.Value))
                     .ToList();
-                await CascadeAsync(nestedProperties, rootContent, results, cache, cancellationToken);
+                await CascadeAsync(nestedProperties, rootContent, results, cache, cancellationToken, stepPath);
             }
         }
     }
@@ -183,26 +190,60 @@ internal sealed class ContentCheckResolutionService : IContentCheckResolutionSer
         return content.Path.Split(',').Contains(startNodeId.Value.ToString());
     }
 
-    private List<ResolvedContentCheckRule> ResolveRules(IEnumerable<ContentCheckPolicy> policies)
+    /// <summary>
+    /// Groups each matching policy with its own provenance and resolved rules, dropping any
+    /// policy that has no rules resolving to a registered check. Cascading matches are always
+    /// labeled <see cref="ContentCheckEffectiveCheckProvenance.Cascading"/> regardless of whether
+    /// the policy targets the element type directly or via its own composition — once nested,
+    /// that inner distinction doesn't matter to the outer view (mirrors
+    /// <see cref="ContentCheckEffectiveChecksService"/>'s identical choice for the same reason).
+    /// </summary>
+    private List<ContentCheckResolvedPolicyMatch> BuildPolicyMatches(
+        IEnumerable<ContentCheckPolicy> policies, Guid contentTypeKey, bool cascading)
     {
-        var rules = new List<ResolvedContentCheckRule>();
+        var matches = new List<ContentCheckResolvedPolicyMatch>();
         foreach (var policy in policies)
         {
-            foreach (var rule in policy.Rules)
+            var rules = ResolveRules(policy);
+            if (rules.Count == 0)
             {
-                var check = _checks.GetByAlias(rule.CheckAlias);
-                if (check is null)
-                {
-                    continue;
-                }
-
-                rules.Add(new ResolvedContentCheckRule
-                {
-                    Check = check,
-                    Config = rule.Config,
-                    Mode = rule.Mode,
-                });
+                continue;
             }
+
+            var provenance = cascading
+                ? ContentCheckEffectiveCheckProvenance.Cascading
+                : policy.ContentTypeKey == contentTypeKey
+                    ? ContentCheckEffectiveCheckProvenance.Direct
+                    : ContentCheckEffectiveCheckProvenance.Composition;
+
+            matches.Add(new ContentCheckResolvedPolicyMatch
+            {
+                Policy = policy,
+                Provenance = provenance,
+                Rules = rules,
+            });
+        }
+
+        return matches;
+    }
+
+    private List<ResolvedContentCheckRule> ResolveRules(ContentCheckPolicy policy)
+    {
+        var rules = new List<ResolvedContentCheckRule>();
+        foreach (var rule in policy.Rules)
+        {
+            var check = _checks.GetByAlias(rule.CheckAlias);
+            if (check is null)
+            {
+                continue;
+            }
+
+            rules.Add(new ResolvedContentCheckRule
+            {
+                Check = check,
+                Config = rule.Config,
+                Mode = rule.Mode,
+            });
         }
 
         return rules;
