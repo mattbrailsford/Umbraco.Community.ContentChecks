@@ -17,6 +17,7 @@ public class ChildrenTreeController : TreeControllerBase
     /// <summary>
     /// Initializes a new instance of the <see cref="ChildrenTreeController"/> class.
     /// </summary>
+    /// <param name="policyService">Policy/folder CRUD and lookup.</param>
     public ChildrenTreeController(IContentCheckPolicyService policyService)
     {
         _policyService = policyService;

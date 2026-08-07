@@ -1,14 +1,21 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Umbraco.Cms.Api.Common.DependencyInjection;
 using Umbraco.Cms.Api.Common.OpenApi;
-using Microsoft.AspNetCore.Authorization;
 using Umbraco.Cms.Api.Management.OpenApi;
 using Umbraco.Cms.Core.DependencyInjection;
+using Umbraco.Cms.Core.Mapping;
 using Umbraco.Community.ContentChecks.Core;
 using Umbraco.Community.ContentChecks.Web;
+using Umbraco.Community.ContentChecks.Web.Api.Management.ApplicableChecks.Mapping;
+using Umbraco.Community.ContentChecks.Web.Api.Management.Evaluation.Mapping;
+using Umbraco.Community.ContentChecks.Web.Api.Management.Folders.Mapping;
+using Umbraco.Community.ContentChecks.Web.Api.Management.Policies.Mapping;
 using Umbraco.Community.ContentChecks.Web.Authorization;
+using Umbraco.Community.ContentChecks.Web.Runs;
 
 namespace Umbraco.Community.ContentChecks.Extensions;
 
@@ -52,6 +59,19 @@ public static class ContentChecksWebBuilderExtensions
             o.AddPolicy(ContentChecksAuthorizationPolicies.SectionAccessContentChecks, policy =>
                 policy.Requirements.Add(new ContentChecksSectionAccessRequirement()));
         });
+
+        // The live-run mechanism: a singleton tracker holding run state, a singleton queue
+        // decoupling "a run was started" from "the worker has gotten to it", and the worker
+        // itself as a hosted background service.
+        builder.Services.AddSingleton<IContentCheckRunTracker, ContentCheckRunTracker>();
+        builder.Services.AddSingleton<IContentCheckRunQueue, ContentCheckRunQueue>();
+        builder.Services.AddHostedService<ContentCheckRunBackgroundService>();
+
+        builder.WithCollectionBuilder<MapDefinitionCollectionBuilder>()
+            .Add<PolicyMapDefinition>()
+            .Add<FolderMapDefinition>()
+            .Add<ApplicableChecksMapDefinition>()
+            .Add<EvaluationMapDefinition>();
 
         return builder;
     }

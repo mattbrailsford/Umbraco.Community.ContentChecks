@@ -16,6 +16,7 @@ public class DeletePolicyController : PoliciesControllerBase
     /// <summary>
     /// Initializes a new instance of the <see cref="DeletePolicyController"/> class.
     /// </summary>
+    /// <param name="policyService">Policy CRUD and lookup.</param>
     public DeletePolicyController(IContentCheckPolicyService policyService)
     {
         _policyService = policyService;

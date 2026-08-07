@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace Umbraco.Community.ContentChecks.Web.Api.Management.Folders.Models;
 
 /// <summary>
@@ -6,20 +8,22 @@ namespace Umbraco.Community.ContentChecks.Web.Api.Management.Folders.Models;
 /// route. Renaming and moving (via <see cref="ParentFolderKey"/>) both go through this one call,
 /// not separate endpoints.
 /// </summary>
-public sealed class FolderRequestModel
+public class FolderRequestModel
 {
     /// <summary>
     /// The folder's durable identity. Only read on create; a route key always wins on update.
     /// </summary>
-    public required Guid Key { get; init; }
+    [Required]
+    public Guid Key { get; set; }
 
     /// <summary>
     /// The display name of the folder.
     /// </summary>
-    public required string Name { get; init; }
+    [Required]
+    public string Name { get; set; } = string.Empty;
 
     /// <summary>
     /// The containing folder. <c>null</c> means this folder is at the root.
     /// </summary>
-    public Guid? ParentFolderKey { get; init; }
+    public Guid? ParentFolderKey { get; set; }
 }

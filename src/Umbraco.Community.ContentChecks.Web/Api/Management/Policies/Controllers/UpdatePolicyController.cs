@@ -1,6 +1,7 @@
 using Asp.Versioning;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Umbraco.Cms.Core.Mapping;
 using Umbraco.Community.ContentChecks.Core.Policies;
 using Umbraco.Community.ContentChecks.Web.Api.Management.Policies.Models;
 
@@ -13,13 +14,17 @@ namespace Umbraco.Community.ContentChecks.Web.Api.Management.Policies.Controller
 public class UpdatePolicyController : PoliciesControllerBase
 {
     private readonly IContentCheckPolicyService _policyService;
+    private readonly IUmbracoMapper _umbracoMapper;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="UpdatePolicyController"/> class.
     /// </summary>
-    public UpdatePolicyController(IContentCheckPolicyService policyService)
+    /// <param name="policyService">Policy CRUD and lookup.</param>
+    /// <param name="umbracoMapper">Maps API request/response models to domain models.</param>
+    public UpdatePolicyController(IContentCheckPolicyService policyService, IUmbracoMapper umbracoMapper)
     {
         _policyService = policyService;
+        _umbracoMapper = umbracoMapper;
     }
 
     /// <summary>
@@ -43,12 +48,13 @@ public class UpdatePolicyController : PoliciesControllerBase
             return PolicyNotFound();
         }
 
-        var policy = requestModel.ToDomain(key);
+        var policy = _umbracoMapper.Map<PolicyRequestModel, ContentCheckPolicy>(requestModel)!;
+        policy.Key = key;
 
         try
         {
             var updated = await _policyService.SavePolicyAsync(policy, cancellationToken);
-            return Ok(updated.ToResponseModel());
+            return Ok(_umbracoMapper.Map<PolicyResponseModel>(updated));
         }
         catch (InvalidOperationException ex)
         {

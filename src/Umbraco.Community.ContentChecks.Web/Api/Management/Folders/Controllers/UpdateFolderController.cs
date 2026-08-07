@@ -1,6 +1,7 @@
 using Asp.Versioning;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Umbraco.Cms.Core.Mapping;
 using Umbraco.Community.ContentChecks.Core.Policies;
 using Umbraco.Community.ContentChecks.Web.Api.Management.Folders.Models;
 
@@ -14,13 +15,17 @@ namespace Umbraco.Community.ContentChecks.Web.Api.Management.Folders.Controllers
 public class UpdateFolderController : FoldersControllerBase
 {
     private readonly IContentCheckPolicyService _policyService;
+    private readonly IUmbracoMapper _umbracoMapper;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="UpdateFolderController"/> class.
     /// </summary>
-    public UpdateFolderController(IContentCheckPolicyService policyService)
+    /// <param name="policyService">Policy/folder CRUD and lookup.</param>
+    /// <param name="umbracoMapper">Maps API request/response models to domain models.</param>
+    public UpdateFolderController(IContentCheckPolicyService policyService, IUmbracoMapper umbracoMapper)
     {
         _policyService = policyService;
+        _umbracoMapper = umbracoMapper;
     }
 
     /// <summary>
@@ -42,8 +47,10 @@ public class UpdateFolderController : FoldersControllerBase
             return FolderNotFound();
         }
 
-        var folder = requestModel.ToDomain(key);
+        var folder = _umbracoMapper.Map<FolderRequestModel, ContentCheckPolicyFolder>(requestModel)!;
+        folder.Key = key;
+
         var updated = await _policyService.SaveFolderAsync(folder, cancellationToken);
-        return Ok(updated.ToResponseModel());
+        return Ok(_umbracoMapper.Map<FolderResponseModel>(updated));
     }
 }

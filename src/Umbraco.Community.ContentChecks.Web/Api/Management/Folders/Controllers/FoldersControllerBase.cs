@@ -14,6 +14,7 @@ public abstract class FoldersControllerBase : ContentChecksManagementControllerB
     /// <summary>
     /// Returns a 404 Not Found response for a folder.
     /// </summary>
+    /// <returns>A 404 Not Found result.</returns>
     protected IActionResult FolderNotFound() => NotFound(CreateProblemDetails(
         "Folder not found",
         "The specified folder could not be found."));
@@ -21,6 +22,7 @@ public abstract class FoldersControllerBase : ContentChecksManagementControllerB
     /// <summary>
     /// Returns a 400 Bad Request response for a folder that still has policies or subfolders in it.
     /// </summary>
+    /// <returns>A 400 Bad Request result.</returns>
     protected IActionResult FolderNotEmpty() => BadRequest(CreateProblemDetails(
         "Folder not empty",
         "The folder still contains policies or subfolders. Empty it first."));

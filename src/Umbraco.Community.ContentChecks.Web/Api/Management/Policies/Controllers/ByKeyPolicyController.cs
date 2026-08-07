@@ -1,6 +1,7 @@
 using Asp.Versioning;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Umbraco.Cms.Core.Mapping;
 using Umbraco.Community.ContentChecks.Core.Policies;
 using Umbraco.Community.ContentChecks.Web.Api.Management.Policies.Models;
 
@@ -13,13 +14,17 @@ namespace Umbraco.Community.ContentChecks.Web.Api.Management.Policies.Controller
 public class ByKeyPolicyController : PoliciesControllerBase
 {
     private readonly IContentCheckPolicyService _policyService;
+    private readonly IUmbracoMapper _umbracoMapper;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ByKeyPolicyController"/> class.
     /// </summary>
-    public ByKeyPolicyController(IContentCheckPolicyService policyService)
+    /// <param name="policyService">Policy CRUD and lookup.</param>
+    /// <param name="umbracoMapper">Maps domain models to API response models.</param>
+    public ByKeyPolicyController(IContentCheckPolicyService policyService, IUmbracoMapper umbracoMapper)
     {
         _policyService = policyService;
+        _umbracoMapper = umbracoMapper;
     }
 
     /// <summary>
@@ -35,6 +40,6 @@ public class ByKeyPolicyController : PoliciesControllerBase
     public async Task<IActionResult> GetPolicyByKey(Guid key, CancellationToken cancellationToken = default)
     {
         var policy = await _policyService.GetPolicyAsync(key, cancellationToken);
-        return policy is null ? PolicyNotFound() : Ok(policy.ToResponseModel());
+        return policy is null ? PolicyNotFound() : Ok(_umbracoMapper.Map<PolicyResponseModel>(policy));
     }
 }

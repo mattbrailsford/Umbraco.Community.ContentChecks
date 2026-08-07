@@ -141,6 +141,12 @@ public static class Constants
                 /// The Swagger group name for evaluation features.
                 /// </summary>
                 public const string GroupName = "Evaluation";
+
+                /// <summary>
+                /// The most content items one run can be started with — recorded as pending
+                /// real-world tuning. Keeps this endpoint from quietly becoming an uncapped sweep.
+                /// </summary>
+                public const int MaxBatchSize = 50;
             }
         }
     }

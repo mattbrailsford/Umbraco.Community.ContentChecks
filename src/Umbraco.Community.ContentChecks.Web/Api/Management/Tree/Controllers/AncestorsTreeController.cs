@@ -1,6 +1,7 @@
 using Asp.Versioning;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Umbraco.Cms.Core.Mapping;
 using Umbraco.Community.ContentChecks.Core.Policies;
 using Umbraco.Community.ContentChecks.Web.Api.Management.Folders.Models;
 
@@ -13,13 +14,17 @@ namespace Umbraco.Community.ContentChecks.Web.Api.Management.Tree.Controllers;
 public class AncestorsTreeController : TreeControllerBase
 {
     private readonly IContentCheckPolicyService _policyService;
+    private readonly IUmbracoMapper _umbracoMapper;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="AncestorsTreeController"/> class.
     /// </summary>
-    public AncestorsTreeController(IContentCheckPolicyService policyService)
+    /// <param name="policyService">Policy/folder CRUD and lookup.</param>
+    /// <param name="umbracoMapper">Maps domain models to API response models.</param>
+    public AncestorsTreeController(IContentCheckPolicyService policyService, IUmbracoMapper umbracoMapper)
     {
         _policyService = policyService;
+        _umbracoMapper = umbracoMapper;
     }
 
     /// <summary>
@@ -28,7 +33,7 @@ public class AncestorsTreeController : TreeControllerBase
     /// <param name="key">The folder's or policy's key.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The ancestor folders, ordered root-first.</returns>
-    [HttpGet($"ancestors/{{{nameof(key)}}}")]
+    [HttpGet($"{{{nameof(key)}}}/ancestors")]
     [MapToApiVersion("1.0")]
     [ProducesResponseType(typeof(IEnumerable<FolderResponseModel>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
@@ -57,7 +62,7 @@ public class AncestorsTreeController : TreeControllerBase
         }
 
         ancestors.Reverse();
-        return Ok(ancestors.Select(f => f.ToResponseModel()));
+        return Ok(_umbracoMapper.MapEnumerable<ContentCheckPolicyFolder, FolderResponseModel>(ancestors));
     }
 
     private async Task<(bool HasResult, Guid? ParentFolderKey)> ResolveStartingParentKeyAsync(Guid key, CancellationToken cancellationToken)

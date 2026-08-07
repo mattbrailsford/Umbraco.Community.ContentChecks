@@ -1,6 +1,7 @@
 using Asp.Versioning;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Umbraco.Cms.Core.Mapping;
 using Umbraco.Community.ContentChecks.Core.Policies;
 using Umbraco.Community.ContentChecks.Web.Api.Management.Policies.Models;
 
@@ -13,13 +14,17 @@ namespace Umbraco.Community.ContentChecks.Web.Api.Management.Policies.Controller
 public class CreatePolicyController : PoliciesControllerBase
 {
     private readonly IContentCheckPolicyService _policyService;
+    private readonly IUmbracoMapper _umbracoMapper;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="CreatePolicyController"/> class.
     /// </summary>
-    public CreatePolicyController(IContentCheckPolicyService policyService)
+    /// <param name="policyService">Policy CRUD and lookup.</param>
+    /// <param name="umbracoMapper">Maps API request/response models to domain models.</param>
+    public CreatePolicyController(IContentCheckPolicyService policyService, IUmbracoMapper umbracoMapper)
     {
         _policyService = policyService;
+        _umbracoMapper = umbracoMapper;
     }
 
     /// <summary>
@@ -34,7 +39,8 @@ public class CreatePolicyController : PoliciesControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> CreatePolicy(PolicyRequestModel requestModel, CancellationToken cancellationToken = default)
     {
-        var policy = requestModel.ToDomain(requestModel.Key);
+        var policy = _umbracoMapper.Map<PolicyRequestModel, ContentCheckPolicy>(requestModel)!;
+        policy.Key = requestModel.Key;
 
         try
         {
@@ -43,7 +49,7 @@ public class CreatePolicyController : PoliciesControllerBase
                 nameof(ByKeyPolicyController.GetPolicyByKey),
                 nameof(ByKeyPolicyController).Replace("Controller", string.Empty),
                 new { key = created.Key },
-                created.ToResponseModel());
+                _umbracoMapper.Map<PolicyResponseModel>(created));
         }
         catch (InvalidOperationException ex)
         {

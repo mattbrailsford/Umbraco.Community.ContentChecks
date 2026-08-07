@@ -17,6 +17,7 @@ public class DeleteFolderController : FoldersControllerBase
     /// <summary>
     /// Initializes a new instance of the <see cref="DeleteFolderController"/> class.
     /// </summary>
+    /// <param name="policyService">Policy/folder CRUD and lookup.</param>
     public DeleteFolderController(IContentCheckPolicyService policyService)
     {
         _policyService = policyService;

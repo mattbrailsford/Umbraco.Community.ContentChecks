@@ -14,6 +14,7 @@ public abstract class PoliciesControllerBase : ContentChecksManagementController
     /// <summary>
     /// Returns a 404 Not Found response for a policy.
     /// </summary>
+    /// <returns>A 404 Not Found result.</returns>
     protected IActionResult PolicyNotFound() => NotFound(CreateProblemDetails(
         "Policy not found",
         "The specified check policy could not be found."));
@@ -21,5 +22,7 @@ public abstract class PoliciesControllerBase : ContentChecksManagementController
     /// <summary>
     /// Returns a 400 Bad Request response for an alias already in use by another policy.
     /// </summary>
+    /// <param name="detail">The detail message describing the conflict.</param>
+    /// <returns>A 400 Bad Request result.</returns>
     protected IActionResult AliasInUse(string detail) => BadRequest(CreateProblemDetails("Alias already in use", detail));
 }
