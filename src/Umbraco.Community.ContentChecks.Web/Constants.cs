@@ -73,6 +73,25 @@ public static class Constants
             }
 
             /// <summary>
+            /// Defines constants for the combined policy/folder tree — children-of-root,
+            /// children-of-folder, and ancestors (breadcrumb). Moving a policy into or out of a
+            /// folder isn't a tree endpoint; it's the <c>ParentFolderKey</c> field on the policy's
+            /// own update call.
+            /// </summary>
+            public static class Tree
+            {
+                /// <summary>
+                /// The route segment for tree features.
+                /// </summary>
+                public const string RouteSegment = "tree";
+
+                /// <summary>
+                /// The Swagger group name for tree features.
+                /// </summary>
+                public const string GroupName = "Tree";
+            }
+
+            /// <summary>
             /// Defines constants for registered check-type features — list, with each type's
             /// config schema, so the UI renders every check's config form from this, no per-type
             /// frontend code.

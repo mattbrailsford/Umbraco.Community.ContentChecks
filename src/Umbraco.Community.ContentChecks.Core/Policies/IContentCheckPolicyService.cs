@@ -84,6 +84,17 @@ public interface IContentCheckPolicyService
     Task<ContentCheckPolicyFolder> SaveFolderAsync(ContentCheckPolicyFolder folder, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Checks whether a folder still has policies or subfolders directly inside it — an existence
+    /// check, not a full load. Lets a caller (e.g. the tree UI) know a folder can't be deleted, or
+    /// whether it's worth rendering an expand arrow, without provoking the exception
+    /// <see cref="DeleteFolderAsync"/> throws for the same condition.
+    /// </summary>
+    /// <param name="key">The folder's key.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns><c>true</c> if the folder has at least one policy or subfolder directly inside it.</returns>
+    Task<bool> FolderHasChildrenAsync(Guid key, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Deletes a folder. Fires <see cref="ContentCheckPolicyFolderDeletingNotification"/> before,
     /// and <see cref="ContentCheckPolicyFolderDeletedNotification"/> after. Returns <c>false</c> if
     /// no folder with this key exists. Blocked, not cascading, when the folder still has policies

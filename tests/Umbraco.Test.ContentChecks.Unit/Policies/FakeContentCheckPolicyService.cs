@@ -51,4 +51,7 @@ internal sealed class FakeContentCheckPolicyService : IContentCheckPolicyService
 
     public Task<bool> DeleteFolderAsync(Guid key, CancellationToken cancellationToken = default)
         => Task.FromResult(_folders.RemoveAll(f => f.Key == key) > 0);
+
+    public Task<bool> FolderHasChildrenAsync(Guid key, CancellationToken cancellationToken = default)
+        => Task.FromResult(_policies.Any(p => p.ParentFolderKey == key) || _folders.Any(f => f.ParentFolderKey == key));
 }

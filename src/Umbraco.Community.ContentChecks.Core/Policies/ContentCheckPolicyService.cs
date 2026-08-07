@@ -118,6 +118,11 @@ internal sealed class ContentCheckPolicyService : IContentCheckPolicyService
     }
 
     /// <inheritdoc />
+    public async Task<bool> FolderHasChildrenAsync(Guid key, CancellationToken cancellationToken = default)
+        => await _repository.PolicyExistsInFolderAsync(key, cancellationToken)
+            || await _repository.FolderExistsInFolderAsync(key, cancellationToken);
+
+    /// <inheritdoc />
     public async Task<bool> DeleteFolderAsync(Guid key, CancellationToken cancellationToken = default)
     {
         if (await FolderHasChildrenAsync(key, cancellationToken))
@@ -145,14 +150,4 @@ internal sealed class ContentCheckPolicyService : IContentCheckPolicyService
 
         return true;
     }
-
-    /// <summary>
-    /// Blocks deleting a non-empty folder, rather than cascading — a check policy governs real
-    /// publish-blocking behavior, so silently deleting several blocking-mode policies because
-    /// their containing folder was removed is a bigger footgun here than it would be for a less
-    /// consequential entity.
-    /// </summary>
-    private async Task<bool> FolderHasChildrenAsync(Guid key, CancellationToken cancellationToken)
-        => await _repository.PolicyExistsInFolderAsync(key, cancellationToken)
-            || await _repository.FolderExistsInFolderAsync(key, cancellationToken);
 }

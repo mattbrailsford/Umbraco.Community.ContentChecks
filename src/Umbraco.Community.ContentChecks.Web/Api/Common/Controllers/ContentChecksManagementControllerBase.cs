@@ -22,15 +22,14 @@ namespace Umbraco.Community.ContentChecks.Web.Api.Common.Controllers;
 public abstract class ContentChecksManagementControllerBase : ControllerBase
 {
     /// <summary>
-    /// Creates an operation status result for the given status using a problem details builder.
+    /// Creates a problem details object with the given title and detail.
     /// </summary>
-    /// <typeparam name="TEnum">The operation status enum type.</typeparam>
-    /// <param name="status">The operation status.</param>
-    /// <param name="builder">A function that creates the action result using the problem details builder.</param>
-    /// <returns>An IActionResult based on the operation status.</returns>
-    protected static IActionResult OperationStatusResult<TEnum>(
-        TEnum status,
-        Func<ProblemDetailsBuilder, IActionResult> builder)
-        where TEnum : Enum
-        => builder(new ProblemDetailsBuilder().WithOperationStatus(status));
+    /// <param name="title">The title of the problem.</param>
+    /// <param name="detail">The detail message of the problem.</param>
+    /// <returns>A ProblemDetails object.</returns>
+    protected static ProblemDetails CreateProblemDetails(string title, string detail)
+        => new ProblemDetailsBuilder()
+            .WithTitle(title)
+            .WithDetail(detail)
+            .Build();
 }
