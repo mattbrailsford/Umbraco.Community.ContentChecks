@@ -66,7 +66,7 @@ export class ContentChecksRuleTypePickerModalElement extends UmbModalBaseElement
     #renderCheckType(type: CheckTypeResponseModel) {
         return html`
             <uui-ref-node name=${type.name} detail=${type.description ?? ""} @open=${() => this.#handleSelect(type)}>
-                <umb-icon slot="icon" name="icon-checkbox-fill"></umb-icon>
+                <umb-icon slot="icon" name="icon-checkbox"></umb-icon>
             </uui-ref-node>
         `;
     }

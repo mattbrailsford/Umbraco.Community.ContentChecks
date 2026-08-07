@@ -5,9 +5,8 @@ import type { UmbPropertyDatasetElement, UmbPropertyValueData } from "@umbraco-c
 import { CONTENT_CHECKS_POLICY_WORKSPACE_ALIAS } from "../constants.js";
 import { CONTENT_CHECKS_POLICY_WORKSPACE_CONTEXT } from "./policy-workspace.context-token.js";
 import type { ContentChecksPolicyWorkspaceContext } from "./policy-workspace.context.js";
-import type { ContentChecksPolicyDetailModel } from "../../types.js";
-import type { CcPolicyRulesEditorElement } from "../../components/policy-rules-editor/policy-rules-editor.element.js";
-import "../../components/policy-rules-editor/policy-rules-editor.element.js";
+import type { ContentChecksPolicyDetailModel, ContentChecksPolicyRuleModel } from "../../types.js";
+import "../../property-editors/rules/property-editor-ui-rules.element.js";
 
 @customElement("content-checks-policy-workspace-editor")
 export class ContentChecksPolicyWorkspaceEditorElement extends UmbLitElement {
@@ -53,10 +52,11 @@ export class ContentChecksPolicyWorkspaceEditorElement extends UmbLitElement {
         this.#workspaceContext?.updateProperty("startNodeKey", startNodeKey || null);
     }
 
-    #onRulesChange(e: Event) {
+    #onRulesChange(e: CustomEvent) {
         e.stopPropagation();
-        const rulesEditor = e.target as CcPolicyRulesEditorElement;
-        this.#workspaceContext?.updateProperty("rules", rulesEditor.rules);
+        const dataset = e.target as UmbPropertyDatasetElement;
+        const rules = dataset.value.find((v) => v.alias === "rules")?.value as ContentChecksPolicyRuleModel[] | undefined;
+        this.#workspaceContext?.updateProperty("rules", rules ?? []);
     }
 
     #schemaFieldValues(): UmbPropertyValueData[] {
@@ -64,6 +64,10 @@ export class ContentChecksPolicyWorkspaceEditorElement extends UmbLitElement {
             { alias: "contentTypeKey", value: this._model?.contentTypeKey ?? undefined },
             { alias: "startNodeKey", value: this._model?.startNodeKey ?? undefined },
         ];
+    }
+
+    #rulesFieldValues(): UmbPropertyValueData[] {
+        return [{ alias: "rules", value: this._model?.rules ?? [] }];
     }
 
     override render() {
@@ -93,29 +97,38 @@ export class ContentChecksPolicyWorkspaceEditorElement extends UmbLitElement {
                     </uui-input>
                 </div>
 
-                <uui-box headline="Content type">
-                    <p>Which document type or element type this policy attaches to, and optionally where.</p>
-                    <umb-property-dataset .value=${this.#schemaFieldValues()} @change=${this.#onSchemaFieldsChange}>
-                        <umb-property
-                            label="Content type"
-                            alias="contentTypeKey"
-                            property-editor-ui-alias="Umb.PropertyEditorUi.DocumentTypePicker"
-                            .config=${[{ alias: "validationLimit", value: { min: 1, max: 1 } }]}
-                            .validation=${{ mandatory: true }}
-                        ></umb-property>
-                        <umb-property
-                            label="Start node"
-                            description="Restrict this policy to content underneath this node. Leave empty to apply everywhere the content type reaches."
-                            alias="startNodeKey"
-                            property-editor-ui-alias="Umb.PropertyEditorUi.DocumentPicker"
-                            .config=${[{ alias: "validationLimit", value: { min: 0, max: 1 } }]}
-                        ></umb-property>
-                    </umb-property-dataset>
-                </uui-box>
+                <div id="main">
+                    <uui-box headline="Content type">
+                        <umb-property-dataset .value=${this.#schemaFieldValues()} @change=${this.#onSchemaFieldsChange}>
+                            <umb-property
+                                label="Content type"
+                                description="Which document type or element type this policy attaches to, and optionally where."
+                                alias="contentTypeKey"
+                                property-editor-ui-alias="Umb.PropertyEditorUi.DocumentTypePicker"
+                                .config=${[{ alias: "validationLimit", value: { min: 1, max: 1 } }]}
+                                .validation=${{ mandatory: true }}
+                            ></umb-property>
+                            <umb-property
+                                label="Start node"
+                                description="Restrict this policy to content underneath this node. Leave empty to apply everywhere the content type reaches."
+                                alias="startNodeKey"
+                                property-editor-ui-alias="Umb.PropertyEditorUi.DocumentPicker"
+                                .config=${[{ alias: "validationLimit", value: { min: 0, max: 1 } }]}
+                            ></umb-property>
+                        </umb-property-dataset>
+                    </uui-box>
 
-                <uui-box headline="Rules">
-                    <cc-policy-rules-editor .rules=${this._model.rules} @change=${this.#onRulesChange}></cc-policy-rules-editor>
-                </uui-box>
+                    <uui-box headline="Rules">
+                        <umb-property-dataset .value=${this.#rulesFieldValues()} @change=${this.#onRulesChange}>
+                            <umb-property
+                                label="Rules"
+                                description="The checks this policy runs, and how strictly each is enforced."
+                                alias="rules"
+                                property-editor-ui-alias="ContentChecks.PropertyEditorUi.Rules"
+                            ></umb-property>
+                        </umb-property-dataset>
+                    </uui-box>
+                </div>
 
                 ${when(
                     !this.#workspaceContext?.getIsNew(),
@@ -136,6 +149,9 @@ export class ContentChecksPolicyWorkspaceEditorElement extends UmbLitElement {
             }
             #name {
                 width: 100%;
+            }
+            #main {
+                padding: var(--uui-size-layout-1);
             }
             uui-box {
                 margin-bottom: var(--uui-size-layout-1);

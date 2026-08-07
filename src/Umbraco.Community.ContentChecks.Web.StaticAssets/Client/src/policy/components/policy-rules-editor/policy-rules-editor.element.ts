@@ -108,10 +108,7 @@ export class CcPolicyRulesEditorElement extends UmbLitElement {
                     (rule, index) => this.#renderRule(rule, index),
                 )}
             </uui-ref-list>
-            <uui-button label="Add rule" look="placeholder" @click=${this.#onAdd}>
-                <uui-icon name="icon-add"></uui-icon>
-                Add rule
-            </uui-button>
+            <uui-button id="btn-add" label="Add rule" look="placeholder" @click=${this.#onAdd}></uui-button>
         `;
     }
 
@@ -123,7 +120,7 @@ export class CcPolicyRulesEditorElement extends UmbLitElement {
                 detail=${this.#summaryFor(rule)}
                 @open=${() => this.#onEdit(rule, index)}
             >
-                <umb-icon slot="icon" name="icon-checkbox-fill"></umb-icon>
+                <umb-icon slot="icon" name="icon-checkbox"></umb-icon>
                 <uui-action-bar slot="actions">
                     <uui-button label="Edit" @click=${() => this.#onEdit(rule, index)}>
                         <uui-icon name="icon-edit"></uui-icon>
@@ -151,7 +148,8 @@ export class CcPolicyRulesEditorElement extends UmbLitElement {
             uui-ref-node::before {
                 border-top: 1px solid var(--uui-color-divider-standalone);
             }
-            uui-button[label="Add rule"] {
+            #btn-add {
+                width: 100%;
                 margin-top: var(--uui-size-space-4);
             }
         `,

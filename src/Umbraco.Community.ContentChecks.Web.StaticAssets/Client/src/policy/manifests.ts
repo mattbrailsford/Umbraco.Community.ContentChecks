@@ -4,6 +4,7 @@ import { policyRepositoryManifests } from "./repository/manifests.js";
 import { policyEntityActionManifests } from "./entity-actions/manifests.js";
 import { policyWorkspaceManifests } from "./workspace/policy/manifests.js";
 import { policyRuleModalManifests } from "./modals/manifests.js";
+import { policyPropertyEditorManifests } from "./property-editors/manifests.js";
 
 export const policyManifests: Array<UmbExtensionManifest> = [
     ...policyTreeManifests,
@@ -12,4 +13,5 @@ export const policyManifests: Array<UmbExtensionManifest> = [
     ...policyEntityActionManifests,
     ...policyWorkspaceManifests,
     ...policyRuleModalManifests,
+    ...policyPropertyEditorManifests,
 ];

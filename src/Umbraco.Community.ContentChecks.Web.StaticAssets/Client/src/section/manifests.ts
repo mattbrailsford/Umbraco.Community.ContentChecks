@@ -7,7 +7,7 @@ const section: UmbExtensionManifest = {
     type: "section",
     alias: CONTENT_CHECKS_SECTION_ALIAS,
     name: "Content Checks Section",
-    meta: { label: "Content Checks", pathname: "content-checks" },
+    meta: { label: "Checks", pathname: "content-checks" },
     conditions: [{ alias: "Umb.Condition.SectionUserPermission", match: CONTENT_CHECKS_SECTION_ALIAS }],
 };
 

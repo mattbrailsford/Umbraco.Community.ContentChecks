@@ -9,7 +9,7 @@ export const applicableChecksManifests: Array<UmbExtensionManifest> = [
         name: "Content Checks Applicable Checks View",
         element: () => import("./applicable-checks-workspace-view.element.js"),
         weight: 90,
-        meta: { label: "Content Checks", pathname: "content-checks", icon: "icon-checkbox-dotted-line" },
+        meta: { label: "Checks", pathname: "content-checks", icon: "icon-circle-dotted-active" },
         conditions: [{ alias: UMB_WORKSPACE_CONDITION_ALIAS, match: UMB_DOCUMENT_WORKSPACE_ALIAS }],
     },
 ];
