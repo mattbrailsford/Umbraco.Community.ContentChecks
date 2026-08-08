@@ -1,6 +1,6 @@
 # Umbraco.Community.ContentChecks — Overview
 
-**Status:** **This is the `v18/dev` branch** (the default branch) — targets Umbraco CMS v18 only; v17 is maintained independently on the sibling `v17/dev` branch, see §1's CMS floor & branch model row. Phase 0 is complete on this branch. Phase 1 is built (one gap open — the 14-finding review gate, see [Core Contract](core-contract-spec.md) §7). Phase 2 is built (folder delete-with-children enforced; the real-`IContent` gap closed 2026-08-08). **Phase 3 (Management API & backoffice UI) is now also built and manually verified (2026-08-07/08)** — see [Management API & UI](management-api-ui-spec.md)'s own status line for what's confirmed working versus the couple of things still open (a click-through from a failed check to the offending property, and a real-content cascading-match integration test). Phases 4+ are still just design sketches, not built.
+**Status:** **This is the `v18/dev` branch** (the default branch) — targets Umbraco CMS v18 only; v17 is maintained independently on the sibling `v17/dev` branch, see §1's CMS floor & branch model row. Phase 0 is complete on this branch. Phase 1 is built (one gap open — the 14-finding review gate, see [Core Contract](core-contract-spec.md) §7). Phase 2 is built (folder delete-with-children enforced; the real-`IContent` gap closed 2026-08-08). **Phase 3 (Management API & backoffice UI) is now also built and manually verified (2026-08-07/08)** — see [Management API & UI](management-api-ui-spec.md)'s own status line for what's confirmed working versus the couple of things still open (a click-through from a failed check to the offending property, and a real-content cascading-match integration test). **Phase 4 (Triggers) is now design-settled too (2026-08-08)** — see [Triggers](triggers-spec.md), the same pre-design discipline as the phases above, not yet built. Phases 5+ are still just design sketches.
 **Owner:** Matt Brailsford
 
 This is the mainline document — vision, naming, cross-cutting decisions, and the roadmap linking out to a spec per feature area. It doesn't duplicate the detail in those specs; it's the map, not the territory.
@@ -118,7 +118,7 @@ Umbraco.Community.ContentChecks/
 | 1 — Contract, runner, two proving checks | [Core Contract](core-contract-spec.md) | Built and passing its own tests, including a real-`IContent` integration test; one gap open (the 14-finding review gate, see that spec's §7) |
 | 2 — Check policies & configuration | [Policy Resolution](policy-resolution-spec.md) | Built, unit-tested, and now integration-tested against a real `IContentType`/`IContent` (direct + composition match) |
 | 3 — Management API & backoffice UI | [Management API & UI](management-api-ui-spec.md) | Built and manually verified; a couple of gaps open (see that spec's Status line) |
-| 4 — Triggers | [Triggers](triggers-spec.md) | Sketch only |
+| 4 — Triggers | [Triggers](triggers-spec.md) | Design settled; not yet built |
 | 5 — `Umbraco.Community.ContentChecks.AI` | [AI Integration](ai-integration-spec.md) | Sketch only |
 | 6 — Backtest | [Management API & UI](management-api-ui-spec.md) | Sketch only |
 | 7 — Draft Sets integration | (below) | Not started |
