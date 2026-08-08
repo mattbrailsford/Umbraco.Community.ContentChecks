@@ -4,6 +4,8 @@ import {
     CONTENT_CHECKS_POLICY_ROOT_ENTITY_TYPE,
 } from "../entity.js";
 import { CONTENT_CHECKS_FOLDER_REPOSITORY_ALIAS } from "../folder/constants.js";
+import { CONTENT_CHECKS_POLICY_MOVE_REPOSITORY_ALIAS } from "../repository/constants.js";
+import { CONTENT_CHECKS_TREE_ALIAS, CONTENT_CHECKS_TREE_REPOSITORY_ALIAS } from "../tree/constants.js";
 
 const creatableEntityTypes = [CONTENT_CHECKS_POLICY_ROOT_ENTITY_TYPE, CONTENT_CHECKS_FOLDER_ENTITY_TYPE];
 
@@ -37,6 +39,19 @@ export const policyEntityActionManifests: Array<UmbExtensionManifest> = [
             label: "Folder",
             description: "Group related policies together.",
             folderRepositoryAlias: CONTENT_CHECKS_FOLDER_REPOSITORY_ALIAS,
+        },
+    },
+    {
+        type: "entityAction",
+        kind: "moveTo",
+        alias: "ContentChecks.EntityAction.Policy.MoveTo",
+        name: "Move Policy",
+        forEntityTypes: [CONTENT_CHECKS_POLICY_ENTITY_TYPE],
+        meta: {
+            treeRepositoryAlias: CONTENT_CHECKS_TREE_REPOSITORY_ALIAS,
+            moveRepositoryAlias: CONTENT_CHECKS_POLICY_MOVE_REPOSITORY_ALIAS,
+            treeAlias: CONTENT_CHECKS_TREE_ALIAS,
+            foldersOnly: true,
         },
     },
     {
