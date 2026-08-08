@@ -2,8 +2,8 @@ import type { UmbControllerHost } from "@umbraco-cms/backoffice/controller-api";
 import type { UmbDetailDataSource } from "@umbraco-cms/backoffice/repository";
 import type { UmbFolderModel } from "@umbraco-cms/backoffice/tree";
 import { tryExecute } from "@umbraco-cms/backoffice/resources";
-import { FoldersService } from "../../api/sdk.gen.js";
-import { CONTENT_CHECKS_FOLDER_ENTITY_TYPE } from "../entity.js";
+import { FoldersService } from "../../../../api/sdk.gen.js";
+import { CONTENT_CHECKS_FOLDER_ENTITY_TYPE } from "../../../entity.js";
 
 /**
  * Server data source for policy folder CRUD -- against this project's own custom folder

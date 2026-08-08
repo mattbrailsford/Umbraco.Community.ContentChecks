@@ -1,14 +1,11 @@
-import { CONTENT_CHECKS_TREE_ALIAS, CONTENT_CHECKS_TREE_REPOSITORY_ALIAS } from "./constants.js";
+import { CONTENT_CHECKS_TREE_ALIAS } from "./constants.js";
+import { CONTENT_CHECKS_TREE_REPOSITORY_ALIAS } from "./repository/constants.js";
+import { policyTreeRepositoryManifests } from "./repository/manifests.js";
 import { CONTENT_CHECKS_FOLDER_ENTITY_TYPE, CONTENT_CHECKS_POLICY_ENTITY_TYPE } from "../entity.js";
 import { CONTENT_CHECKS_MENU_ALIAS } from "../../section/constants.js";
 
 export const policyTreeManifests: Array<UmbExtensionManifest> = [
-    {
-        type: "repository",
-        alias: CONTENT_CHECKS_TREE_REPOSITORY_ALIAS,
-        name: "Content Checks Policy Tree Repository",
-        api: () => import("./policy-tree.repository.js"),
-    },
+    ...policyTreeRepositoryManifests,
     {
         type: "tree",
         kind: "default",

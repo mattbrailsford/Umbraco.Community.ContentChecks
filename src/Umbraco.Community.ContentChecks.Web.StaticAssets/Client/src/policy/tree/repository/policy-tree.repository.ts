@@ -2,8 +2,8 @@ import type { UmbControllerHost } from "@umbraco-cms/backoffice/controller-api";
 import { UmbTreeRepositoryBase } from "@umbraco-cms/backoffice/tree";
 import type { UmbApi } from "@umbraco-cms/backoffice/extension-api";
 import { ContentChecksPolicyTreeServerDataSource } from "./policy-tree.server.data-source.js";
-import { CONTENT_CHECKS_POLICY_ROOT_ENTITY_TYPE } from "../entity.js";
-import type { ContentChecksTreeItemModel, ContentChecksTreeRootModel } from "./types.js";
+import { CONTENT_CHECKS_POLICY_ROOT_ENTITY_TYPE } from "../../entity.js";
+import type { ContentChecksTreeItemModel, ContentChecksTreeRootModel } from "../types.js";
 
 export class ContentChecksPolicyTreeRepository
     extends UmbTreeRepositoryBase<ContentChecksTreeItemModel, ContentChecksTreeRootModel>

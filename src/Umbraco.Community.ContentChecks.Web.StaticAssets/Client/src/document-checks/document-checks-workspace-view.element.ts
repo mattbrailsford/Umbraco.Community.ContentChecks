@@ -15,8 +15,8 @@ import type {
  * fills each row in place as the live run reports results -- no separate "results" view to
  * reconcile against the pending one.
  */
-@customElement("cc-applicable-checks-workspace-view")
-export class CcApplicableChecksWorkspaceViewElement extends UmbLitElement {
+@customElement("cc-document-checks-workspace-view")
+export class CcDocumentChecksWorkspaceViewElement extends UmbLitElement {
     @state()
     private _contentKey?: string;
 
@@ -300,10 +300,10 @@ export class CcApplicableChecksWorkspaceViewElement extends UmbLitElement {
     ];
 }
 
-export default CcApplicableChecksWorkspaceViewElement;
+export default CcDocumentChecksWorkspaceViewElement;
 
 declare global {
     interface HTMLElementTagNameMap {
-        "cc-applicable-checks-workspace-view": CcApplicableChecksWorkspaceViewElement;
+        "cc-document-checks-workspace-view": CcDocumentChecksWorkspaceViewElement;
     }
 }

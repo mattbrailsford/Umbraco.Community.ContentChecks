@@ -1,7 +1,7 @@
 import type { UmbControllerHost } from "@umbraco-cms/backoffice/controller-api";
 import { tryExecute } from "@umbraco-cms/backoffice/resources";
 import type { UmbMoveDataSource, UmbMoveToRequestArgs } from "@umbraco-cms/backoffice/tree";
-import { FoldersService } from "../../../api/sdk.gen.js";
+import { FoldersService } from "../../../../api/sdk.gen.js";
 
 /**
  * Move a folder to a different parent folder (or root) -- re-submits the folder's own PUT with a

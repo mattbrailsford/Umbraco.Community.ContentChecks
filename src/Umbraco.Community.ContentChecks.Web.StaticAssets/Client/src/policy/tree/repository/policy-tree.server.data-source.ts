@@ -6,10 +6,10 @@ import type {
     UmbTreeRootItemsRequestArgs,
 } from "@umbraco-cms/backoffice/tree";
 import { tryExecute } from "@umbraco-cms/backoffice/resources";
-import { TreeService } from "../../api/sdk.gen.js";
-import type { TreeItemResponseModel } from "../../api/types.gen.js";
-import { CONTENT_CHECKS_FOLDER_ENTITY_TYPE, CONTENT_CHECKS_POLICY_ENTITY_TYPE, CONTENT_CHECKS_POLICY_ROOT_ENTITY_TYPE } from "../entity.js";
-import type { ContentChecksTreeItemModel } from "./types.js";
+import { TreeService } from "../../../api/sdk.gen.js";
+import type { TreeItemResponseModel } from "../../../api/types.gen.js";
+import { CONTENT_CHECKS_FOLDER_ENTITY_TYPE, CONTENT_CHECKS_POLICY_ENTITY_TYPE, CONTENT_CHECKS_POLICY_ROOT_ENTITY_TYPE } from "../../entity.js";
+import type { ContentChecksTreeItemModel } from "../types.js";
 
 /**
  * Tree data source against this project's own combined policy/folder tree endpoints -- not any

@@ -3,9 +3,10 @@ import {
     CONTENT_CHECKS_POLICY_ENTITY_TYPE,
     CONTENT_CHECKS_POLICY_ROOT_ENTITY_TYPE,
 } from "../entity.js";
-import { CONTENT_CHECKS_FOLDER_REPOSITORY_ALIAS } from "../folder/constants.js";
+import { CONTENT_CHECKS_FOLDER_REPOSITORY_ALIAS } from "../folder/repository/constants.js";
 import { CONTENT_CHECKS_POLICY_MOVE_REPOSITORY_ALIAS } from "../repository/constants.js";
-import { CONTENT_CHECKS_TREE_ALIAS, CONTENT_CHECKS_TREE_REPOSITORY_ALIAS } from "../tree/constants.js";
+import { CONTENT_CHECKS_TREE_ALIAS } from "../tree/constants.js";
+import { CONTENT_CHECKS_TREE_REPOSITORY_ALIAS } from "../tree/repository/constants.js";
 
 const creatableEntityTypes = [CONTENT_CHECKS_POLICY_ROOT_ENTITY_TYPE, CONTENT_CHECKS_FOLDER_ENTITY_TYPE];
 

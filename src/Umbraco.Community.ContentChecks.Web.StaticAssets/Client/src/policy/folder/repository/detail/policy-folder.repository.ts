@@ -4,8 +4,8 @@ import { UmbRequestReloadChildrenOfEntityEvent } from "@umbraco-cms/backoffice/e
 import type { UmbFolderModel } from "@umbraco-cms/backoffice/tree";
 import { ContentChecksPolicyFolderServerDataSource } from "./policy-folder.server.data-source.js";
 import { CONTENT_CHECKS_FOLDER_STORE_CONTEXT } from "./policy-folder.store.js";
-import { CONTENT_CHECKS_FOLDER_ENTITY_TYPE, CONTENT_CHECKS_POLICY_ROOT_ENTITY_TYPE } from "../entity.js";
-import { ContentChecksEntityActionEvent, dispatchActionEvent } from "../../core/index.js";
+import { CONTENT_CHECKS_FOLDER_ENTITY_TYPE, CONTENT_CHECKS_POLICY_ROOT_ENTITY_TYPE } from "../../../entity.js";
+import { ContentChecksEntityActionEvent, dispatchActionEvent } from "../../../../core/index.js";
 
 /**
  * Repository for policy folder CRUD -- dispatches entity action events after successful
