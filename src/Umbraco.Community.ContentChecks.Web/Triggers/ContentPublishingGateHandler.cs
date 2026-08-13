@@ -49,20 +49,38 @@ internal sealed class ContentPublishingGateHandler : INotificationAsyncHandler<C
 
         var currentUserKey = _backOfficeSecurityAccessor.BackOfficeSecurity?.CurrentUser?.Key;
 
-        var blockingEntries = new List<ContentCheckPublishGateBlockingEntry>();
+        var blockingEntries = new List<ContentCheckPublishGateEntry>();
+        var recommendedMissedEntries = new List<ContentCheckPublishGateEntry>();
         foreach (var content in notification.PublishedEntities)
         {
             foreach (var culture in CulturesBeingPublished(notification, content))
             {
                 var result = await _gateService.EvaluateAsync(content, culture, segment: null, currentUserKey, cancellationToken);
                 blockingEntries.AddRange(result.BlockingEntries);
+                recommendedMissedEntries.AddRange(result.RecommendedMissedEntries);
             }
         }
 
+        // A block supersedes a recommendation notice -- never show both for the same publish
+        // attempt. Deliberately generic, not per-check detail: the Checks panel is where an editor
+        // reads the actual reasons; a toast only needs to tell them to go look.
         if (blockingEntries.Count > 0)
         {
-            var reason = string.Join(" | ", blockingEntries.Select(e => $"{e.CheckAlias}: {e.Message}"));
-            notification.CancelOperation(new EventMessage("Content Checks", reason, EventMessageType.Error));
+            notification.CancelOperation(new EventMessage(
+                "Content Checks",
+                $"{blockingEntries.Count} check{(blockingEntries.Count == 1 ? "" : "s")} {(blockingEntries.Count == 1 ? "is" : "are")} blocking this publish — see the Checks panel for details.",
+                EventMessageType.Error));
+        }
+        else if (recommendedMissedEntries.Count > 0)
+        {
+            // Not cancelled -- this is advisory. Adding to Messages without calling
+            // CancelOperation rides the same ambient EventMessages/Umb-Notifications plumbing as a
+            // second, non-blocking toast (the same pattern Umbraco's own
+            // AddDomainWarningsWhenPublishingNotificationHandler uses for its own publish warnings).
+            notification.Messages.Add(new EventMessage(
+                "Content Checks",
+                $"{recommendedMissedEntries.Count} recommended check{(recommendedMissedEntries.Count == 1 ? "" : "s")} {(recommendedMissedEntries.Count == 1 ? "was" : "were")} missed — see the Checks panel for details.",
+                EventMessageType.Warning));
         }
     }
 

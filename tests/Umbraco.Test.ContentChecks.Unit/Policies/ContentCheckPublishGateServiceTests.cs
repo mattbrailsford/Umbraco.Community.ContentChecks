@@ -168,6 +168,37 @@ public class ContentCheckPublishGateServiceTests
             Times.Never);
     }
 
+    [Test]
+    public async Task EvaluateAsync_RecommendedLevelFailure_ReportedAsRecommendedMissed_RegardlessOfGuard()
+    {
+        var content = Content();
+        var resolutionService = ResolutionServiceReturning(Target(CheckAlias, RequirementLevel.Recommended));
+        var resultService = ResultServiceReturning(StoredResult(ContentCheckStatus.Fail, RequirementLevel.Recommended));
+        // No Guard would ever block a Recommended-level failure here (Warn for everyone), but the
+        // miss should still be reported -- it's a fact about the content, not an enforcement outcome.
+        var guardService = GuardServiceAlwaysReturning(ContentCheckResponse.Warn);
+
+        var service = new ContentCheckPublishGateService(resultService.Object, resolutionService.Object, guardService.Object);
+        var result = await service.EvaluateAsync(content, culture: null, segment: null, currentUserKey: null);
+
+        Assert.That(result.IsBlocked, Is.False);
+        Assert.That(result.RecommendedMissedEntries.Single().CheckAlias, Is.EqualTo(CheckAlias));
+    }
+
+    [Test]
+    public async Task EvaluateAsync_MandatoryLevelFailure_NeverCountsAsRecommendedMissed()
+    {
+        var content = Content();
+        var resolutionService = ResolutionServiceReturning(Target(CheckAlias, RequirementLevel.Mandatory));
+        var resultService = ResultServiceReturning(StoredResult(ContentCheckStatus.Fail, RequirementLevel.Mandatory));
+        var guardService = GuardServiceAlwaysReturning(ContentCheckResponse.Warn);
+
+        var service = new ContentCheckPublishGateService(resultService.Object, resolutionService.Object, guardService.Object);
+        var result = await service.EvaluateAsync(content, culture: null, segment: null, currentUserKey: null);
+
+        Assert.That(result.RecommendedMissedEntries, Is.Empty, "Only Recommended-level misses are reported this way.");
+    }
+
     private static IContent Content()
     {
         var mock = new Mock<IContent>();

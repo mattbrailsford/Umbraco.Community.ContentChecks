@@ -43,7 +43,7 @@ internal sealed class ContentCheckPublishGateService : IContentCheckPublishGateS
     {
         var failingEntries = await ReconcileAsync(content, culture, segment, cancellationToken);
 
-        var blockingEntries = new List<ContentCheckPublishGateBlockingEntry>();
+        var blockingEntries = new List<ContentCheckPublishGateEntry>();
         foreach (var entry in failingEntries)
         {
             var response = await _guardResolutionService.ResolveResponseAsync(
@@ -55,7 +55,19 @@ internal sealed class ContentCheckPublishGateService : IContentCheckPublishGateS
             }
         }
 
-        return new ContentCheckPublishGateResult { BlockingEntries = blockingEntries };
+        // Independent of Guard -- a Recommended-level miss is a fact about the content, not an
+        // enforcement decision, so it's surfaced regardless of whether this user would be blocked
+        // by anything. The caller decides how this combines with a block (see
+        // ContentCheckPublishGateResult.RecommendedMissedEntries).
+        var recommendedMissedEntries = failingEntries
+            .Where(e => e.RequirementLevel == RequirementLevel.Recommended)
+            .ToList();
+
+        return new ContentCheckPublishGateResult
+        {
+            BlockingEntries = blockingEntries,
+            RecommendedMissedEntries = recommendedMissedEntries,
+        };
     }
 
     /// <summary>
@@ -68,7 +80,7 @@ internal sealed class ContentCheckPublishGateService : IContentCheckPublishGateS
     /// that's meant to require a passing report could be dodged entirely just by publishing content
     /// that's never been checked, or was edited since it last was.
     /// </summary>
-    private async Task<List<ContentCheckPublishGateBlockingEntry>> ReconcileAsync(
+    private async Task<List<ContentCheckPublishGateEntry>> ReconcileAsync(
         IContent content, string? culture, string? segment, CancellationToken cancellationToken)
     {
         var storedResults = await _resultService.GetByContentKeyAsync(content.Key, culture, segment, cancellationToken);
@@ -83,7 +95,7 @@ internal sealed class ContentCheckPublishGateService : IContentCheckPublishGateS
 
         var targets = await _resolutionService.ResolveAsync(content, culture, segment, cancellationToken);
 
-        var entries = new List<ContentCheckPublishGateBlockingEntry>();
+        var entries = new List<ContentCheckPublishGateEntry>();
         foreach (var target in targets)
         {
             var pathKey = PathKey(target.Path);
@@ -95,7 +107,7 @@ internal sealed class ContentCheckPublishGateService : IContentCheckPublishGateS
                 {
                     if (rule.NotEvaluatedPolicy == ContentCheckNotEvaluatedPolicy.FailClosed)
                     {
-                        entries.Add(new ContentCheckPublishGateBlockingEntry
+                        entries.Add(new ContentCheckPublishGateEntry
                         {
                             CheckAlias = rule.Check.Alias,
                             RequirementLevel = rule.RequirementLevel,
@@ -108,7 +120,7 @@ internal sealed class ContentCheckPublishGateService : IContentCheckPublishGateS
 
                 if (IsCountedAsFailing(fresh))
                 {
-                    entries.Add(new ContentCheckPublishGateBlockingEntry
+                    entries.Add(new ContentCheckPublishGateEntry
                     {
                         CheckAlias = fresh.CheckAlias,
                         RequirementLevel = fresh.RequirementLevel,
