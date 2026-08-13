@@ -23,11 +23,28 @@ public interface IContentCheckSnapshot
 
     /// <summary>
     /// The persisted version identifier of this snapshot, or <c>null</c> when it has no
-    /// persisted version yet (unsaved editor state, a Draft Set's in-memory pending state). The
-    /// result cache keys on this when present, falling back to hashing the snapshot's values
-    /// when it's <c>null</c>.
+    /// persisted version yet (unsaved editor state, a Draft Set's in-memory pending state).
+    /// <para>
+    /// <b>Not a freshness signal, and never a cache key.</b> Umbraco updates a draft in place —
+    /// saving changed values leaves the version id alone, and a new version appears only on
+    /// publish. Keying anything "has this content changed?" off this is a stale-result bug; that's
+    /// what <see cref="ContentStamp"/> is for. This is identity for reporting and for recording a
+    /// run against, nothing more.
+    /// </para>
     /// </summary>
     int? VersionId { get; }
+
+    /// <summary>
+    /// An opaque token that changes whenever this snapshot's content changes, or <c>null</c> if
+    /// this snapshot genuinely can't answer (in which case it is never cached).
+    /// <para>
+    /// Never parsed, compared for ordering, or interpreted by callers — only compared for
+    /// equality, as part of the result cache key. How it's derived is each implementation's own
+    /// business: a saved content item stamps from its update date, while a snapshot holding its
+    /// values in memory hashes them.
+    /// </para>
+    /// </summary>
+    string? ContentStamp { get; }
 
     /// <summary>
     /// Whether this snapshot has the given property. Distinct from <see cref="GetValue{TValue}"/>

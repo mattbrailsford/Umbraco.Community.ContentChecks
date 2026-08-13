@@ -9,7 +9,7 @@ namespace Umbraco.Community.ContentChecks.Web.Api.Common.Configuration;
 /// names. .NET's native OpenAPI schema generation doesn't look at the JSON serializer options this
 /// API registers (<see cref="System.Text.Json.Serialization.JsonStringEnumConverter"/>, applied
 /// via the named JSON options every controller uses), so left alone it advertises every
-/// <c>ContentCheckStatus</c>/<c>ContentCheckRuleMode</c>/etc. field as a plain number — a schema
+/// <c>ContentCheckStatus</c>/<c>RequirementLevel</c>/etc. field as a plain number — a schema
 /// that doesn't match what the API actually sends or accepts. Umbraco.AI hit the identical gap on
 /// its own (Swashbuckle-based) pipeline and fixed it the same way, for the same reason.
 /// </summary>

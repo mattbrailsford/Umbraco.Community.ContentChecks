@@ -13,9 +13,15 @@ public sealed class ContentCheckReportEntry
     public required string CheckAlias { get; init; }
 
     /// <summary>
-    /// Whether this rule's failure blocks.
+    /// How important this rule's failure is.
     /// </summary>
-    public required ContentCheckRuleMode Mode { get; init; }
+    public required RequirementLevel RequirementLevel { get; init; }
+
+    /// <summary>
+    /// What this rule's failure actually does, resolved for whoever triggered this run. See
+    /// docs/guard-spec.md.
+    /// </summary>
+    public required ContentCheckResponse Response { get; init; }
 
     /// <summary>
     /// The result the check produced.

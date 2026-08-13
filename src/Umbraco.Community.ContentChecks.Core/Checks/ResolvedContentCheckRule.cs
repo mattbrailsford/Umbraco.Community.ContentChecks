@@ -17,7 +17,14 @@ public sealed class ResolvedContentCheckRule
     public required ContentCheckConfig Config { get; init; }
 
     /// <summary>
-    /// Whether a failure of this rule blocks. Defaults to <see cref="ContentCheckRuleMode.Advisory"/>.
+    /// How important a failure of this rule is. Defaults to <see cref="RequirementLevel.Recommended"/>.
     /// </summary>
-    public ContentCheckRuleMode Mode { get; init; } = ContentCheckRuleMode.Advisory;
+    public RequirementLevel RequirementLevel { get; init; } = RequirementLevel.Recommended;
+
+    /// <summary>
+    /// The resolved response for a failure of this rule, for the user and location this rule was
+    /// resolved against. Defaults to <see cref="ContentCheckResponse.Warn"/> — the safe default
+    /// when no Guard applies. See docs/guard-spec.md.
+    /// </summary>
+    public ContentCheckResponse Response { get; init; } = ContentCheckResponse.Warn;
 }

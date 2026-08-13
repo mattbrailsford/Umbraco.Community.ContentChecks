@@ -12,7 +12,7 @@ namespace Umbraco.Community.ContentChecks.Core.Checks;
 /// what scheduling actually needs:
 /// <list type="number">
 /// <item>Every <c>Free</c> rule runs first, always.</item>
-/// <item>If any <c>Blocking</c> <c>Free</c> rule produced <see cref="ContentCheckStatus.Fail"/>,
+/// <item>If any <c>Free</c> rule resolves to <see cref="ContentCheckResponse.Block"/> and produced <see cref="ContentCheckStatus.Fail"/>,
 /// every <c>Metered</c> rule short-circuits straight to <see cref="ContentCheckNotEvaluatedReason.ShortCircuited"/>
 /// — no expensive call is made.</item>
 /// <item>Otherwise every <c>Metered</c> rule runs, concurrently, up to a per-run cap.</item>
@@ -50,14 +50,15 @@ internal sealed class ContentCheckRunner : IContentCheckRunner
         }
 
         var blockingFreeFailure = entries.Any(e =>
-            e.Mode == ContentCheckRuleMode.Blocking && e.Result.Status == ContentCheckStatus.Fail);
+            e.Response == ContentCheckResponse.Block && e.Result.Status == ContentCheckStatus.Fail);
 
         if (blockingFreeFailure)
         {
             entries.AddRange(meteredRules.Select(rule => new ContentCheckReportEntry
             {
                 CheckAlias = rule.Check.Alias,
-                Mode = rule.Mode,
+                RequirementLevel = rule.RequirementLevel,
+                Response = rule.Response,
                 Result = new ContentCheckResult
                 {
                     Status = ContentCheckStatus.NotEvaluated,
@@ -122,7 +123,8 @@ internal sealed class ContentCheckRunner : IContentCheckRunner
                 return new ContentCheckReportEntry
                 {
                     CheckAlias = rule.Check.Alias,
-                    Mode = rule.Mode,
+                    RequirementLevel = rule.RequirementLevel,
+                    Response = rule.Response,
                     Result = cached,
                     Elapsed = TimeSpan.Zero,
                 };
@@ -161,21 +163,27 @@ internal sealed class ContentCheckRunner : IContentCheckRunner
         return new ContentCheckReportEntry
         {
             CheckAlias = rule.Check.Alias,
-            Mode = rule.Mode,
+            RequirementLevel = rule.RequirementLevel,
+            Response = rule.Response,
             Result = result,
             Elapsed = stopwatch.Elapsed,
         };
     }
 
     /// <summary>
-    /// Builds the cache key for one rule against one snapshot, or <c>null</c> if the snapshot
-    /// has no persisted version to key on. There is no generic way to enumerate an opaque
-    /// <see cref="IContentCheckSnapshot"/>'s values to hash as a fallback, so unsaved/Draft Set
-    /// content simply skips the cache rather than hashing something dishonest.
+    /// Builds the cache key for one rule against one snapshot, or <c>null</c> if the snapshot can't
+    /// say when its content last changed — in which case it isn't cached at all, rather than being
+    /// cached against something that doesn't actually track change.
+    /// <para>
+    /// Keys on <see cref="IContentCheckSnapshot.ContentStamp"/>, never
+    /// <see cref="IContentCheckSnapshot.VersionId"/>: a draft save changes values in place without
+    /// touching the version id, so a version-keyed entry returns the pre-edit verdict for post-edit
+    /// content.
+    /// </para>
     /// </summary>
     private static string? BuildCacheKey(ResolvedContentCheckRule rule, ContentCheckRunRequest request)
     {
-        if (request.Content.VersionId is not { } versionId)
+        if (request.Content.ContentStamp is not { } contentStamp)
         {
             return null;
         }
@@ -185,7 +193,7 @@ internal sealed class ContentCheckRunner : IContentCheckRunner
 
         return string.Join(
             '|',
-            versionId,
+            contentStamp,
             request.Content.Key,
             request.Culture ?? string.Empty,
             request.Segment ?? string.Empty,

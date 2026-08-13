@@ -64,6 +64,10 @@ public static class ContentChecksBuilderExtensions
         builder.Services.AddSingleton<IContentCheckPolicyRepository, InMemoryContentCheckPolicyRepository>();
         builder.Services.AddSingleton<IContentCheckPolicyService, ContentCheckPolicyService>();
 
+        builder.Services.AddSingleton<IGuardRepository, InMemoryGuardRepository>();
+        builder.Services.AddSingleton<IGuardService, GuardService>();
+        builder.Services.AddSingleton<IGuardResolutionService, ContentCheckGuardResolutionService>();
+
         builder.Services.AddSingleton<IContentCheckResolutionService, ContentCheckResolutionService>();
         builder.Services.AddSingleton<IContentCheckEffectiveChecksService, ContentCheckEffectiveChecksService>();
         builder.Services.AddSingleton<IContentCheckEvaluationService, ContentCheckEvaluationService>();

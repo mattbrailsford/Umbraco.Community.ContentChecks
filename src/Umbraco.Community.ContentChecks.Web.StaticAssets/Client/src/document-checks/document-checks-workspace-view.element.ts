@@ -194,11 +194,11 @@ export class CcDocumentChecksWorkspaceViewElement extends UmbLitElement {
         `;
     }
 
-    #renderRule(target: ApplicableCheckTargetResponseModel, checkAlias: string, checkName: string, mode: string) {
+    #renderRule(target: ApplicableCheckTargetResponseModel, checkAlias: string, checkName: string, requirementLevel: string) {
         return html`
             <div class="rule-row">
                 <span class="check-name">${checkName}</span>
-                <uui-tag look="outline">${mode}</uui-tag>
+                <uui-tag look="outline">${requirementLevel}</uui-tag>
                 <div class="result">${this.#renderResult(target.path, checkAlias)}</div>
             </div>
         `;
@@ -219,7 +219,7 @@ export class CcDocumentChecksWorkspaceViewElement extends UmbLitElement {
                                 <strong>${match.policyName}</strong>
                                 <uui-tag look="outline">${match.provenance}</uui-tag>
                             </div>
-                            ${match.rules.map((rule) => this.#renderRule(target, rule.checkAlias, rule.checkName, rule.mode))}
+                            ${match.rules.map((rule) => this.#renderRule(target, rule.checkAlias, rule.checkName, rule.requirementLevel))}
                         </div>
                     `,
                 )}

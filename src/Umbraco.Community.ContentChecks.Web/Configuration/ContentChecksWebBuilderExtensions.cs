@@ -13,6 +13,7 @@ using Umbraco.Community.ContentChecks.Web;
 using Umbraco.Community.ContentChecks.Web.Api.Common.Configuration;
 using Umbraco.Community.ContentChecks.Web.Api.Management.ApplicableChecks.Mapping;
 using Umbraco.Community.ContentChecks.Web.Api.Management.CheckTypes.Mapping;
+using Umbraco.Community.ContentChecks.Web.Api.Management.Guards.Mapping;
 using Umbraco.Community.ContentChecks.Web.Api.Management.Evaluation.Mapping;
 using Umbraco.Community.ContentChecks.Web.Api.Management.Folders.Mapping;
 using Umbraco.Community.ContentChecks.Web.Api.Management.Policies.Mapping;
@@ -57,10 +58,13 @@ public static class ContentChecksWebBuilderExtensions
         // AllowedApplicationRequirement/AllowedApplicationHandler pair that's internal to the CMS,
         // so this package registers its own requirement/handler of the same shape instead.
         builder.Services.AddSingleton<IAuthorizationHandler, ContentChecksSectionAccessHandler>();
+        builder.Services.AddSingleton<IAuthorizationHandler, ContentChecksSettingsSectionAccessHandler>();
         builder.Services.AddAuthorization(o =>
         {
             o.AddPolicy(ContentChecksAuthorizationPolicies.SectionAccessContentChecks, policy =>
                 policy.Requirements.Add(new ContentChecksSectionAccessRequirement()));
+            o.AddPolicy(ContentChecksAuthorizationPolicies.SectionAccessSettings, policy =>
+                policy.Requirements.Add(new ContentChecksSettingsSectionAccessRequirement()));
         });
 
         // The live-run mechanism: a singleton tracker holding run state, a singleton queue
@@ -75,7 +79,8 @@ public static class ContentChecksWebBuilderExtensions
             .Add<FolderMapDefinition>()
             .Add<ApplicableChecksMapDefinition>()
             .Add<EvaluationMapDefinition>()
-            .Add<CheckTypesMapDefinition>();
+            .Add<CheckTypesMapDefinition>()
+            .Add<GuardMapDefinition>();
 
         return builder;
     }

@@ -25,7 +25,8 @@ public class ContentCheckResolutionServiceTests
             new ContentCheckCollection(() => checks),
             new ContentCheckElementSourceCollection(() => elementSources),
             contentTypeService.Object,
-            new Mock<IEntityService>().Object);
+            new Mock<IEntityService>().Object,
+            new Mock<IGuardResolutionService>().Object);
 
     [Test]
     public async Task ResolveAsync_DirectMatch_ReturnsRootTargetWithItsRules()
@@ -258,7 +259,7 @@ public class ContentCheckResolutionServiceTests
             Alias = "testimonial-policy",
             Name = "Testimonial",
             ContentTypeKey = testimonialKey,
-            Rules = [new ContentCheckPolicyRule { CheckAlias = quoteCheck.Alias, Mode = ContentCheckRuleMode.Advisory }],
+            Rules = [new ContentCheckPolicyRule { CheckAlias = quoteCheck.Alias, RequirementLevel = RequirementLevel.Optional }],
         });
 
         var service = CreateService(policyService, [quoteCheck], [elementSource], contentTypeService);

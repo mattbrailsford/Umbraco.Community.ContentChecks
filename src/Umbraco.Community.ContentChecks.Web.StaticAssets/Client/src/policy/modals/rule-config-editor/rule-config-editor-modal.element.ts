@@ -15,7 +15,7 @@ export class ContentChecksRuleConfigEditorModalElement extends UmbModalBaseEleme
     ContentChecksRuleConfigEditorModalValue
 > {
     @state()
-    private _mode: ContentChecksPolicyRuleModel["mode"] = "Advisory";
+    private _requirementLevel: ContentChecksPolicyRuleModel["requirementLevel"] = "Recommended";
 
     @state()
     private _notEvaluatedPolicy: ContentChecksPolicyRuleModel["notEvaluatedPolicy"] = "FailOpen";
@@ -27,14 +27,14 @@ export class ContentChecksRuleConfigEditorModalElement extends UmbModalBaseEleme
         super.connectedCallback();
 
         if (this.data?.existingRule) {
-            this._mode = this.data.existingRule.mode;
+            this._requirementLevel = this.data.existingRule.requirementLevel;
             this._notEvaluatedPolicy = this.data.existingRule.notEvaluatedPolicy;
             this._configModel = this.data.existingRule.config ? { ...this.data.existingRule.config } : {};
         }
     }
 
-    #onModeChange(e: Event) {
-        this._mode = (e.target as HTMLSelectElement).value as ContentChecksPolicyRuleModel["mode"];
+    #onRequirementLevelChange(e: Event) {
+        this._requirementLevel = (e.target as HTMLSelectElement).value as ContentChecksPolicyRuleModel["requirementLevel"];
     }
 
     #onNotEvaluatedPolicyChange(e: Event) {
@@ -48,7 +48,7 @@ export class ContentChecksRuleConfigEditorModalElement extends UmbModalBaseEleme
     #onSubmit() {
         const rule: ContentChecksPolicyRuleModel = {
             checkAlias: this.data!.checkType.alias,
-            mode: this._mode,
+            requirementLevel: this._requirementLevel,
             notEvaluatedPolicy: this._notEvaluatedPolicy,
             config: Object.keys(this._configModel).length > 0 ? this._configModel : null,
         };
@@ -70,16 +70,17 @@ export class ContentChecksRuleConfigEditorModalElement extends UmbModalBaseEleme
             <umb-body-layout headline=${headline}>
                 <div>
                     <uui-box headline="General">
-                        <umb-property-layout label="Mode" description="Whether a failing check blocks saving or is only advisory.">
+                        <umb-property-layout label="Requirement level" description="How important a failing check is. Whether it actually blocks anything is decided separately, by a Guard.">
                             <div slot="editor">
                                 <uui-select
-                                    id="mode"
-                                    .value=${this._mode}
+                                    id="requirement-level"
+                                    .value=${this._requirementLevel}
                                     .options=${[
-                                        { value: "Advisory", name: "Advisory", selected: this._mode === "Advisory" },
-                                        { value: "Blocking", name: "Blocking", selected: this._mode === "Blocking" },
+                                        { value: "Optional", name: "Optional", selected: this._requirementLevel === "Optional" },
+                                        { value: "Recommended", name: "Recommended", selected: this._requirementLevel === "Recommended" },
+                                        { value: "Mandatory", name: "Mandatory", selected: this._requirementLevel === "Mandatory" },
                                     ]}
-                                    @change=${this.#onModeChange}
+                                    @change=${this.#onRequirementLevelChange}
                                 >
                                 </uui-select>
                             </div>

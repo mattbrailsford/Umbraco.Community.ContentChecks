@@ -10,9 +10,11 @@ import type { UmbExtensionManifestKind } from "@umbraco-cms/backoffice/extension
 import { sectionManifests } from "./section/manifests.js";
 import { policyManifests } from "./policy/manifests.js";
 import { documentChecksManifests } from "./document-checks/manifests.js";
+import { guardManifests } from "./guard/manifests.js";
 
 export const manifests: Array<UmbExtensionManifest | UmbExtensionManifestKind> = [
     ...sectionManifests,
     ...policyManifests,
     ...documentChecksManifests,
+    ...guardManifests,
 ];

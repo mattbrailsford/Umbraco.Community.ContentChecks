@@ -25,6 +25,11 @@ public class ContentChecksDbContext : DbContext
     internal DbSet<ContentCheckPolicyFolderEntity> PolicyFolders { get; set; } = null!;
 
     /// <summary>
+    /// Guards.
+    /// </summary>
+    internal DbSet<GuardEntity> Guards { get; set; } = null!;
+
+    /// <summary>
     /// Initializes a new instance of the <see cref="ContentChecksDbContext"/> class.
     /// </summary>
     /// <param name="options">The context options.</param>
@@ -111,6 +116,19 @@ public class ContentChecksDbContext : DbContext
                 .IsRequired();
 
             entity.HasIndex(e => e.ParentFolderKey);
+        });
+
+        modelBuilder.Entity<GuardEntity>(entity =>
+        {
+            entity.ToTable("umbracoCommunityContentChecksGuard");
+            entity.HasKey(e => e.Key);
+
+            entity.Property(e => e.Name)
+                .HasMaxLength(255)
+                .IsRequired();
+
+            entity.Property(e => e.RulesJson)
+                .IsRequired();
         });
     }
 }

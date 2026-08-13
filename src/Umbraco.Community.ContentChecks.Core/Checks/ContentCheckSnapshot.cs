@@ -1,3 +1,4 @@
+using System.Globalization;
 using Umbraco.Cms.Core.Models;
 
 namespace Umbraco.Community.ContentChecks.Core.Checks;
@@ -26,6 +27,17 @@ public sealed class ContentCheckSnapshot : IContentCheckSnapshot
 
     /// <inheritdoc />
     public int? VersionId => _content.VersionId;
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// Stamps from <see cref="IContentBase.UpdateDate"/>, which moves on every save — unlike
+    /// <see cref="IContent.VersionId"/>, which doesn't (Umbraco updates a draft in place and only
+    /// versions on publish). Deliberately not hashed and deliberately not combined with the version
+    /// id: hashing a value that already discriminates exactly can only add collisions, and folding
+    /// in the version id would force a needless re-evaluation of unchanged content every time a
+    /// draft is published.
+    /// </remarks>
+    public string? ContentStamp => _content.UpdateDate.Ticks.ToString(CultureInfo.InvariantCulture);
 
     /// <inheritdoc />
     public bool HasProperty(string alias) => _content.HasProperty(alias);

@@ -23,9 +23,10 @@ public class PolicyRuleModel
     public JsonElement? Config { get; set; }
 
     /// <summary>
-    /// Whether this rule only advises, or blocks a gated operation on <c>Fail</c>.
+    /// How important a failure of this rule is. Doesn't decide whether it blocks anything — see
+    /// docs/guard-spec.md.
     /// </summary>
-    public ContentCheckRuleMode Mode { get; set; } = ContentCheckRuleMode.Advisory;
+    public RequirementLevel RequirementLevel { get; set; } = RequirementLevel.Recommended;
 
     /// <summary>
     /// How a <c>NotEvaluated</c> result from this rule should be treated by a gate.

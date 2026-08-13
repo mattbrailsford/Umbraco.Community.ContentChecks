@@ -24,7 +24,13 @@ public class ApplicableRuleResponseModel
     public string CheckName { get; set; } = string.Empty;
 
     /// <summary>
-    /// Whether this rule only advises, or blocks a gated operation on <c>Fail</c>.
+    /// How important a failure of this rule is.
     /// </summary>
-    public ContentCheckRuleMode Mode { get; set; }
+    public RequirementLevel RequirementLevel { get; set; }
+
+    /// <summary>
+    /// What a failure of this rule actually does, resolved for the current request. See
+    /// docs/guard-spec.md.
+    /// </summary>
+    public ContentCheckResponse Response { get; set; }
 }

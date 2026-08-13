@@ -13,7 +13,7 @@ const elementName = "cc-policy-rules-editor";
 
 /**
  * Editable list of a policy's rules -- a ref-node list where adding opens a type-picker modal
- * (which check to run) followed by a config modal (mode/failure-policy plus the check's own
+ * (which check to run) followed by a config modal (requirement level/failure-policy plus the check's own
  * schema-driven fields); editing an existing rule reopens the config modal directly.
  *
  * @fires change - Fired (as UmbChangeEvent) when the rule list changes; read `.rules` off the target.
@@ -96,7 +96,7 @@ export class CcPolicyRulesEditorElement extends UmbLitElement {
 
     #summaryFor(rule: ContentChecksPolicyRuleModel): string {
         const notEvaluatedLabel = rule.notEvaluatedPolicy === "FailOpen" ? "fail open" : "fail closed";
-        return `${rule.mode} · If not evaluated: ${notEvaluatedLabel}`;
+        return `${rule.requirementLevel} · If not evaluated: ${notEvaluatedLabel}`;
     }
 
     override render() {

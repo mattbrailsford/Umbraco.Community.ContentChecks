@@ -22,22 +22,22 @@ public sealed class ContentCheckAggregateReport
     /// <summary>
     /// The worst status across every entry, everywhere — for a results-panel badge. Answers "how
     /// bad is it," a genuinely different question from <see cref="HasBlockingFailure"/>'s "should
-    /// this block the publish" — a page can have a real, failing check that's only
-    /// <see cref="ContentCheckRuleMode.Advisory"/>, worth showing red here but nothing a gate
-    /// should stop on.
+    /// this block the publish" — a page can have a real, failing check that resolved to
+    /// <see cref="ContentCheckResponse.Warn"/>, worth showing red here but nothing a gate should
+    /// stop on.
     /// </summary>
     public ContentCheckStatus OverallStatus => Entries.Count == 0
         ? ContentCheckStatus.NotApplicable
         : Entries.Select(e => e.Entry.Result.Status).Min(StatusSeverityComparer.Instance);
 
     /// <summary>
-    /// Whether any entry is a <see cref="ContentCheckRuleMode.Blocking"/> rule that failed. The
+    /// Whether any entry resolved to <see cref="ContentCheckResponse.Block"/> and failed. The
     /// exact condition the Phase 1 runner already computes internally to short-circuit metered
     /// checks, just widened from "free rules only" to every rule in every snapshot now that this
     /// report has all of them.
     /// </summary>
     public bool HasBlockingFailure => Entries.Any(e =>
-        e.Entry.Mode == ContentCheckRuleMode.Blocking && e.Entry.Result.Status == ContentCheckStatus.Fail);
+        e.Entry.Response == ContentCheckResponse.Block && e.Entry.Result.Status == ContentCheckStatus.Fail);
 
     /// <summary>
     /// Orders <see cref="ContentCheckStatus"/> by severity — <c>Fail &gt; Warn &gt; NotEvaluated &gt;

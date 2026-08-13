@@ -6,9 +6,8 @@ namespace Umbraco.Community.ContentChecks.Core.Policies.Elements;
 /// An <see cref="IContentCheckSnapshot"/> adapter over a discovered <see cref="ContentCheckElementInstance"/>
 /// (one nested element, from any registered <see cref="IContentCheckElementSource"/> — not only
 /// the built-in Block List/Grid sources). <see cref="VersionId"/> is the *root* content item's own
-/// version, not the element's own identity — a nested element has no persisted version of its own,
-/// but the whole property value it lives inside changes exactly when the root document's version
-/// does, so keying the cache off the root's version id still invalidates correctly.
+/// version, since a nested element has no persisted version of its own — reported for provenance,
+/// never used for freshness (see <see cref="ContentStamp"/>).
 /// </summary>
 internal sealed class ContentCheckElementInstanceSnapshot : IContentCheckSnapshot
 {
@@ -18,7 +17,7 @@ internal sealed class ContentCheckElementInstanceSnapshot : IContentCheckSnapsho
     /// Initializes a new instance of the <see cref="ContentCheckElementInstanceSnapshot"/> class.
     /// </summary>
     /// <param name="instance">The discovered element instance to wrap.</param>
-    /// <param name="rootVersionId">The root content item's own version id.</param>
+    /// <param name="rootVersionId">The root content item's own version id, for reporting.</param>
     public ContentCheckElementInstanceSnapshot(ContentCheckElementInstance instance, int? rootVersionId)
     {
         _instance = instance;
@@ -33,6 +32,18 @@ internal sealed class ContentCheckElementInstanceSnapshot : IContentCheckSnapsho
 
     /// <inheritdoc />
     public int? VersionId { get; }
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// Hashes this element's own values rather than inheriting the root document's stamp. Both
+    /// would be correct — the root's stamp moves whenever any block changes — but inheriting it
+    /// invalidates every block on the page whenever any one of them is edited. Stamping per element
+    /// means a page of twenty Testimonials re-evaluates only the one that actually changed, which
+    /// matters most for exactly the case it's most expensive to get wrong: a Metered rule on a
+    /// component that appears many times (see the overview's cascading-cost open question).
+    /// </remarks>
+    public string? ContentStamp => ContentCheckValueStamp.Compute(
+        _instance.Values.Select(v => (v.Alias, v.Culture, v.Segment, v.Value)));
 
     /// <inheritdoc />
     public bool HasProperty(string alias)

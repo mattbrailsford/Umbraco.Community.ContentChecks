@@ -78,6 +78,29 @@ namespace Umbraco.Community.ContentChecks.Persistence.Sqlite.Migrations
 
                     b.ToTable("umbracoCommunityContentChecksPolicyFolder", (string)null);
                 });
+
+            modelBuilder.Entity("Umbraco.Community.ContentChecks.Persistence.Policies.GuardEntity", b =>
+                {
+                    b.Property<Guid>("Key")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RulesJson")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("StartNodeKey")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Key");
+
+                    b.ToTable("umbracoCommunityContentChecksGuard", (string)null);
+                });
 #pragma warning restore 612, 618
         }
     }

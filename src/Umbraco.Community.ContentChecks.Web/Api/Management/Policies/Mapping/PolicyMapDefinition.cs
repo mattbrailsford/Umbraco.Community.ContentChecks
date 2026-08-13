@@ -40,7 +40,7 @@ public class PolicyMapDefinition : IMapDefinition
     {
         target.CheckAlias = source.CheckAlias;
         target.Config = source.Config.Config;
-        target.Mode = source.Mode;
+        target.RequirementLevel = source.RequirementLevel;
         target.NotEvaluatedPolicy = source.NotEvaluatedPolicy;
     }
 
@@ -60,7 +60,7 @@ public class PolicyMapDefinition : IMapDefinition
     {
         target.CheckAlias = source.CheckAlias;
         target.Config = new() { Config = source.Config };
-        target.Mode = source.Mode;
+        target.RequirementLevel = source.RequirementLevel;
         target.NotEvaluatedPolicy = source.NotEvaluatedPolicy;
     }
 }

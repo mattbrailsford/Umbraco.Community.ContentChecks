@@ -21,7 +21,8 @@ export type ApplicablePolicyMatchResponseModel = {
 export type ApplicableRuleResponseModel = {
     checkAlias: string;
     checkName: string;
-    mode: ContentCheckRuleMode;
+    requirementLevel: RequirementLevel;
+    response: ContentCheckResponse;
 };
 
 export type CheckConfigFieldResponseModel = {
@@ -83,10 +84,13 @@ export type ContentCheckNotEvaluatedReason = 'ShortCircuited' | 'Error';
 
 export type ContentCheckReportEntry = {
     checkAlias: string;
-    mode: ContentCheckRuleMode;
+    requirementLevel: RequirementLevel;
+    response: ContentCheckResponse;
     result: ContentCheckResult;
     elapsed: string;
 };
+
+export type ContentCheckResponse = 'Warn' | 'Block';
 
 export type ContentCheckResult = {
     status: ContentCheckStatus;
@@ -96,8 +100,6 @@ export type ContentCheckResult = {
     notEvaluatedReason?: null | ContentCheckNotEvaluatedReason;
     targets?: null | Array<ContentCheckTarget>;
 };
-
-export type ContentCheckRuleMode = 'Advisory' | 'Blocking';
 
 export type ContentCheckRunStatus = 'Running' | 'Completed';
 
@@ -120,6 +122,26 @@ export type EvaluationRunResponseModel = {
     runId: string;
     status: ContentCheckRunStatus;
     items: Array<EvaluationItemResponseModel>;
+};
+
+export type GuardRuleModel = {
+    userKey?: null | string;
+    roleKey?: null | string;
+    blockAt?: null | RequirementLevel;
+};
+
+export type GuardRequestModel = {
+    key: string;
+    name: string;
+    startNodeKey?: null | string;
+    rules: Array<GuardRuleModel>;
+};
+
+export type GuardResponseModel = {
+    key: string;
+    name: string;
+    startNodeKey?: null | string;
+    rules: Array<GuardRuleModel>;
 };
 
 export type FolderRequestModel = {
@@ -159,7 +181,7 @@ export type PolicyResponseModel = {
 export type PolicyRuleModel = {
     checkAlias: string;
     config?: null | JsonElement;
-    mode: ContentCheckRuleMode;
+    requirementLevel: RequirementLevel;
     notEvaluatedPolicy: ContentCheckNotEvaluatedPolicy;
 };
 
@@ -170,6 +192,8 @@ export type ProblemDetails = {
     detail?: null | string;
     instance?: null | string;
 };
+
+export type RequirementLevel = 'Optional' | 'Recommended' | 'Mandatory';
 
 export type StartEvaluationRequestModel = {
     contentKeys: Array<string>;
@@ -591,6 +615,153 @@ export type PutPoliciesByKeyResponses = {
 };
 
 export type PutPoliciesByKeyResponse = PutPoliciesByKeyResponses[keyof PutPoliciesByKeyResponses];
+
+export type GetGuardsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/umbraco/content-checks/management/api/v1/guards';
+};
+
+export type GetGuardsErrors = {
+    /**
+     * The resource is protected and requires an authentication token
+     */
+    401: unknown;
+};
+
+export type GetGuardsResponses = {
+    /**
+     * OK
+     */
+    200: Array<GuardResponseModel>;
+};
+
+export type GetGuardsResponse = GetGuardsResponses[keyof GetGuardsResponses];
+
+export type PostGuardsData = {
+    body: GuardRequestModel;
+    path?: never;
+    query?: never;
+    url: '/umbraco/content-checks/management/api/v1/guards';
+};
+
+export type PostGuardsErrors = {
+    /**
+     * Bad Request
+     */
+    400: ProblemDetails;
+    /**
+     * The resource is protected and requires an authentication token
+     */
+    401: unknown;
+};
+
+export type PostGuardsError = PostGuardsErrors[keyof PostGuardsErrors];
+
+export type PostGuardsResponses = {
+    /**
+     * Created
+     */
+    201: GuardResponseModel;
+};
+
+export type PostGuardsResponse = PostGuardsResponses[keyof PostGuardsResponses];
+
+export type DeleteGuardsByKeyData = {
+    body?: never;
+    path: {
+        key: string;
+    };
+    query?: never;
+    url: '/umbraco/content-checks/management/api/v1/guards/{key}';
+};
+
+export type DeleteGuardsByKeyErrors = {
+    /**
+     * The resource is protected and requires an authentication token
+     */
+    401: unknown;
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+};
+
+export type DeleteGuardsByKeyError = DeleteGuardsByKeyErrors[keyof DeleteGuardsByKeyErrors];
+
+export type DeleteGuardsByKeyResponses = {
+    /**
+     * OK
+     */
+    200: unknown;
+};
+
+export type GetGuardsByKeyData = {
+    body?: never;
+    path: {
+        key: string;
+    };
+    query?: never;
+    url: '/umbraco/content-checks/management/api/v1/guards/{key}';
+};
+
+export type GetGuardsByKeyErrors = {
+    /**
+     * The resource is protected and requires an authentication token
+     */
+    401: unknown;
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+};
+
+export type GetGuardsByKeyError = GetGuardsByKeyErrors[keyof GetGuardsByKeyErrors];
+
+export type GetGuardsByKeyResponses = {
+    /**
+     * OK
+     */
+    200: GuardResponseModel;
+};
+
+export type GetGuardsByKeyResponse = GetGuardsByKeyResponses[keyof GetGuardsByKeyResponses];
+
+export type PutGuardsByKeyData = {
+    body: GuardRequestModel;
+    path: {
+        key: string;
+    };
+    query?: never;
+    url: '/umbraco/content-checks/management/api/v1/guards/{key}';
+};
+
+export type PutGuardsByKeyErrors = {
+    /**
+     * Bad Request
+     */
+    400: ProblemDetails;
+    /**
+     * The resource is protected and requires an authentication token
+     */
+    401: unknown;
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+};
+
+export type PutGuardsByKeyError = PutGuardsByKeyErrors[keyof PutGuardsByKeyErrors];
+
+export type PutGuardsByKeyResponses = {
+    /**
+     * OK
+     */
+    200: GuardResponseModel;
+};
+
+export type PutGuardsByKeyResponse = PutGuardsByKeyResponses[keyof PutGuardsByKeyResponses];
 
 export type GetTreeByKeyAncestorsData = {
     body?: never;

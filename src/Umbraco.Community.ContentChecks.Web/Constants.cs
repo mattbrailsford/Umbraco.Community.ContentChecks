@@ -57,6 +57,22 @@ public static class Constants
             }
 
             /// <summary>
+            /// Defines constants for guard features.
+            /// </summary>
+            public static class Guards
+            {
+                /// <summary>
+                /// The route segment for guard features.
+                /// </summary>
+                public const string RouteSegment = "guards";
+
+                /// <summary>
+                /// The Swagger group name for guard features.
+                /// </summary>
+                public const string GroupName = "Guards";
+            }
+
+            /// <summary>
             /// Defines constants for policy folder features.
             /// </summary>
             public static class Folders

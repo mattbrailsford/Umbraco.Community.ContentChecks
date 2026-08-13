@@ -1,5 +1,5 @@
 import type { UmbEntityModel } from "@umbraco-cms/backoffice/entity";
-import type { ContentCheckNotEvaluatedPolicy, ContentCheckRuleMode } from "../api/types.gen.js";
+import type { ContentCheckNotEvaluatedPolicy, RequirementLevel } from "../api/types.gen.js";
 
 /**
  * One rule within a policy.
@@ -7,7 +7,7 @@ import type { ContentCheckNotEvaluatedPolicy, ContentCheckRuleMode } from "../ap
 export interface ContentChecksPolicyRuleModel {
     checkAlias: string;
     config: Record<string, unknown> | null;
-    mode: ContentCheckRuleMode;
+    requirementLevel: RequirementLevel;
     notEvaluatedPolicy: ContentCheckNotEvaluatedPolicy;
 }
 

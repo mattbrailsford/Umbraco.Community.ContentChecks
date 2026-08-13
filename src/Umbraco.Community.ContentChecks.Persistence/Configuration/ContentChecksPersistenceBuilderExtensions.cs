@@ -31,6 +31,9 @@ public static class ContentChecksPersistenceBuilderExtensions
         builder.Services.AddSingleton<IContentCheckPolicyFactory, ContentCheckPolicyFactory>();
         builder.Services.AddSingleton<IContentCheckPolicyRepository, EFCoreContentCheckPolicyRepository>();
 
+        builder.Services.AddSingleton<IGuardFactory, GuardFactory>();
+        builder.Services.AddSingleton<IGuardRepository, EFCoreGuardRepository>();
+
         builder.AddNotificationAsyncHandler<UmbracoApplicationStartedNotification, RunContentChecksMigrationNotificationHandler>();
 
         return builder;

@@ -33,6 +33,18 @@ public sealed class InMemoryContentCheckSnapshot : IContentCheckSnapshot
     public int? VersionId => null;
 
     /// <inheritdoc />
+    /// <remarks>
+    /// Hashes the values this snapshot holds. Having no persisted version used to mean skipping the
+    /// cache entirely — the stated reason being that there's no generic way to enumerate a
+    /// snapshot's values to hash. That's true of the runner, which can only read a property it
+    /// already knows the alias of, and false of the snapshot, which is the thing holding them. So
+    /// unsaved editor state and Draft Set pending content are cacheable after all, and correctly:
+    /// the stamp moves the moment any value does.
+    /// </remarks>
+    public string? ContentStamp => ContentCheckValueStamp.Compute(
+        _values.Select(v => (v.Key.Alias, v.Key.Culture, v.Key.Segment, v.Value)));
+
+    /// <inheritdoc />
     public bool HasProperty(string alias) => _declaredProperties.Contains(alias);
 
     /// <inheritdoc />

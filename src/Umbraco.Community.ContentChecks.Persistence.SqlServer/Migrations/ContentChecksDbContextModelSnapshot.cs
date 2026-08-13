@@ -83,6 +83,29 @@ namespace Umbraco.Community.ContentChecks.Persistence.SqlServer.Migrations
 
                     b.ToTable("umbracoCommunityContentChecksPolicyFolder", (string)null);
                 });
+
+            modelBuilder.Entity("Umbraco.Community.ContentChecks.Persistence.Policies.GuardEntity", b =>
+                {
+                    b.Property<Guid>("Key")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<string>("RulesJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid?>("StartNodeKey")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Key");
+
+                    b.ToTable("umbracoCommunityContentChecksGuard", (string)null);
+                });
 #pragma warning restore 612, 618
         }
     }

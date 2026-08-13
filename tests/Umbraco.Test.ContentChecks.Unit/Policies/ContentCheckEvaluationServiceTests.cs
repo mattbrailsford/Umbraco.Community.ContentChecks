@@ -40,7 +40,7 @@ public class ContentCheckEvaluationServiceTests
                 {
                     Policy = rootPolicy,
                     Provenance = ContentCheckEffectiveCheckProvenance.Direct,
-                    Rules = [new ResolvedContentCheckRule { Check = passingCheck, Config = new ContentCheckConfig(), Mode = ContentCheckRuleMode.Advisory }],
+                    Rules = [new ResolvedContentCheckRule { Check = passingCheck, Config = new ContentCheckConfig(), RequirementLevel = RequirementLevel.Recommended, Response = ContentCheckResponse.Warn }],
                 },
             ],
             Path = [],
@@ -57,7 +57,7 @@ public class ContentCheckEvaluationServiceTests
                 {
                     Policy = testimonialPolicy,
                     Provenance = ContentCheckEffectiveCheckProvenance.Cascading,
-                    Rules = [new ResolvedContentCheckRule { Check = failingCheck, Config = new ContentCheckConfig(), Mode = ContentCheckRuleMode.Blocking }],
+                    Rules = [new ResolvedContentCheckRule { Check = failingCheck, Config = new ContentCheckConfig(), RequirementLevel = RequirementLevel.Mandatory, Response = ContentCheckResponse.Block }],
                 },
             ],
             Path = [testimonialStep],
@@ -65,7 +65,7 @@ public class ContentCheckEvaluationServiceTests
 
         var resolutionService = new Mock<IContentCheckResolutionService>();
         resolutionService
-            .Setup(s => s.ResolveAsync(content, null, null, It.IsAny<CancellationToken>()))
+            .Setup(s => s.ResolveAsync(content, null, null, null, It.IsAny<CancellationToken>()))
             .ReturnsAsync([rootTarget, nestedTarget]);
 
         var runner = new ContentCheckRunner(new InMemoryContentCheckResultCache(), Mock.Of<IEventAggregator>());
@@ -97,7 +97,7 @@ public class ContentCheckEvaluationServiceTests
 
         var resolutionService = new Mock<IContentCheckResolutionService>();
         resolutionService
-            .Setup(s => s.ResolveAsync(content, null, null, It.IsAny<CancellationToken>()))
+            .Setup(s => s.ResolveAsync(content, null, null, null, It.IsAny<CancellationToken>()))
             .ReturnsAsync([]);
 
         var runner = new ContentCheckRunner(new InMemoryContentCheckResultCache(), Mock.Of<IEventAggregator>());
