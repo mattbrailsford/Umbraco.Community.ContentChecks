@@ -20,10 +20,6 @@ public interface IContentCheckEvaluationService
     /// Optional progress callback, reported once per resolved target as it finishes. Free for any
     /// caller that doesn't need it — only the Management API's live-run endpoint passes one.
     /// </param>
-    /// <param name="currentUserKey">
-    /// The user each rule's response is resolved for, or <c>null</c> if there isn't one (e.g. a
-    /// background run). See <see cref="IContentCheckResolutionService.ResolveAsync"/>.
-    /// </param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The combined report.</returns>
     Task<ContentCheckAggregateReport> EvaluateAsync(
@@ -31,6 +27,5 @@ public interface IContentCheckEvaluationService
         string? culture = null,
         string? segment = null,
         IProgress<ContentCheckEvaluationProgress>? progress = null,
-        Guid? currentUserKey = null,
         CancellationToken cancellationToken = default);
 }

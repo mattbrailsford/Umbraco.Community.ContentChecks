@@ -31,10 +31,9 @@ internal sealed class ContentCheckEvaluationService : IContentCheckEvaluationSer
         string? culture = null,
         string? segment = null,
         IProgress<ContentCheckEvaluationProgress>? progress = null,
-        Guid? currentUserKey = null,
         CancellationToken cancellationToken = default)
     {
-        var targets = await _resolutionService.ResolveAsync(content, culture, segment, currentUserKey, cancellationToken);
+        var targets = await _resolutionService.ResolveAsync(content, culture, segment, cancellationToken);
 
         var entries = new List<ContentCheckAggregateReportEntry>();
         var targetsCompleted = 0;
@@ -65,6 +64,7 @@ internal sealed class ContentCheckEvaluationService : IContentCheckEvaluationSer
         return new ContentCheckAggregateReport
         {
             ContentKey = content.Key,
+            ContentStamp = new ContentCheckSnapshot(content).ContentStamp,
             Entries = entries,
         };
     }

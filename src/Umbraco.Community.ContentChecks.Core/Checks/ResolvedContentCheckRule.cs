@@ -22,9 +22,9 @@ public sealed class ResolvedContentCheckRule
     public RequirementLevel RequirementLevel { get; init; } = RequirementLevel.Recommended;
 
     /// <summary>
-    /// The resolved response for a failure of this rule, for the user and location this rule was
-    /// resolved against. Defaults to <see cref="ContentCheckResponse.Warn"/> — the safe default
-    /// when no Guard applies. See docs/guard-spec.md.
+    /// How a <see cref="ContentCheckStatus.NotEvaluated"/> result from this rule should be treated
+    /// by a gate — see docs/guard-spec.md. Carried through to <see cref="ContentCheckReportEntry"/>
+    /// so it's still available once a run's report is stored, not resolved again at gate time.
     /// </summary>
-    public ContentCheckResponse Response { get; init; } = ContentCheckResponse.Warn;
+    public Policies.ContentCheckNotEvaluatedPolicy NotEvaluatedPolicy { get; init; } = Policies.ContentCheckNotEvaluatedPolicy.FailOpen;
 }

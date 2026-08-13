@@ -27,10 +27,4 @@ public class ApplicableRuleResponseModel
     /// How important a failure of this rule is.
     /// </summary>
     public RequirementLevel RequirementLevel { get; set; }
-
-    /// <summary>
-    /// What a failure of this rule actually does, resolved for the current request. See
-    /// docs/guard-spec.md.
-    /// </summary>
-    public ContentCheckResponse Response { get; set; }
 }

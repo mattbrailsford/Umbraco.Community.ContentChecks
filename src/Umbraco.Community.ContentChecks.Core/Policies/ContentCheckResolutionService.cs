@@ -21,7 +21,6 @@ internal sealed class ContentCheckResolutionService : IContentCheckResolutionSer
     private readonly ContentCheckElementSourceCollection _elementSources;
     private readonly IContentTypeService _contentTypeService;
     private readonly IEntityService _entityService;
-    private readonly IGuardResolutionService _guardResolutionService;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ContentCheckResolutionService"/> class.
@@ -31,21 +30,18 @@ internal sealed class ContentCheckResolutionService : IContentCheckResolutionSer
     /// <param name="elementSources">The registered element sources, for cascading.</param>
     /// <param name="contentTypeService">Resolves content types and their composition graph.</param>
     /// <param name="entityService">Resolves a start node key to its path id.</param>
-    /// <param name="guardResolutionService">Resolves each rule's <see cref="Checks.ContentCheckResponse"/>.</param>
     public ContentCheckResolutionService(
         IContentCheckPolicyService policyService,
         ContentCheckCollection checks,
         ContentCheckElementSourceCollection elementSources,
         IContentTypeService contentTypeService,
-        IEntityService entityService,
-        IGuardResolutionService guardResolutionService)
+        IEntityService entityService)
     {
         _policyService = policyService;
         _checks = checks;
         _elementSources = elementSources;
         _contentTypeService = contentTypeService;
         _entityService = entityService;
-        _guardResolutionService = guardResolutionService;
     }
 
     /// <inheritdoc />
@@ -53,7 +49,6 @@ internal sealed class ContentCheckResolutionService : IContentCheckResolutionSer
         IContent content,
         string? culture = null,
         string? segment = null,
-        Guid? currentUserKey = null,
         CancellationToken cancellationToken = default)
     {
         var results = new List<ContentCheckResolvedTarget>();
@@ -70,7 +65,7 @@ internal sealed class ContentCheckResolutionService : IContentCheckResolutionSer
         }
 
         var rootPolicies = await GetMatchingPoliciesAsync(rootContentType.Key, rootContentType.CompositionKeys(), content, cache, cancellationToken);
-        var rootMatches = await BuildPolicyMatchesAsync(rootPolicies, rootContentType.Key, cascading: false, content, currentUserKey, cancellationToken);
+        var rootMatches = BuildPolicyMatches(rootPolicies, rootContentType.Key, cascading: false);
         if (rootMatches.Count > 0)
         {
             results.Add(new ContentCheckResolvedTarget
@@ -91,7 +86,7 @@ internal sealed class ContentCheckResolutionService : IContentCheckResolutionSer
                     p.PropertyType.VariesBySegment() ? segment : null)))
             .ToList();
 
-        await CascadeAsync(rootProperties, content, results, cache, currentUserKey, cancellationToken, path: []);
+        await CascadeAsync(rootProperties, content, results, cache, cancellationToken, path: []);
 
         return results;
     }
@@ -101,7 +96,6 @@ internal sealed class ContentCheckResolutionService : IContentCheckResolutionSer
         IContent rootContent,
         List<ContentCheckResolvedTarget> results,
         ResolutionCache cache,
-        Guid? currentUserKey,
         CancellationToken cancellationToken,
         IReadOnlyList<ContentCheckLocationStep> path)
     {
@@ -130,7 +124,7 @@ internal sealed class ContentCheckResolutionService : IContentCheckResolutionSer
                 {
                     var matchingPolicies = await GetMatchingPoliciesAsync(
                         elementType.Key, elementType.CompositionKeys(), rootContent, cache, cancellationToken);
-                    var matches = await BuildPolicyMatchesAsync(matchingPolicies, elementType.Key, cascading: true, rootContent, currentUserKey, cancellationToken);
+                    var matches = BuildPolicyMatches(matchingPolicies, elementType.Key, cascading: true);
                     if (matches.Count > 0)
                     {
                         results.Add(new ContentCheckResolvedTarget
@@ -145,7 +139,7 @@ internal sealed class ContentCheckResolutionService : IContentCheckResolutionSer
                 var nestedProperties = instance.Values
                     .Select(v => (v.Alias, v.PropertyEditorAlias, (object?)v.Value))
                     .ToList();
-                await CascadeAsync(nestedProperties, rootContent, results, cache, currentUserKey, cancellationToken, stepPath);
+                await CascadeAsync(nestedProperties, rootContent, results, cache, cancellationToken, stepPath);
             }
         }
     }
@@ -204,18 +198,15 @@ internal sealed class ContentCheckResolutionService : IContentCheckResolutionSer
     /// that inner distinction doesn't matter to the outer view (mirrors
     /// <see cref="ContentCheckEffectiveChecksService"/>'s identical choice for the same reason).
     /// </summary>
-    private async Task<List<ContentCheckResolvedPolicyMatch>> BuildPolicyMatchesAsync(
+    private List<ContentCheckResolvedPolicyMatch> BuildPolicyMatches(
         IEnumerable<ContentCheckPolicy> policies,
         Guid contentTypeKey,
-        bool cascading,
-        IContent content,
-        Guid? currentUserKey,
-        CancellationToken cancellationToken)
+        bool cascading)
     {
         var matches = new List<ContentCheckResolvedPolicyMatch>();
         foreach (var policy in policies)
         {
-            var rules = await ResolveRulesAsync(policy, content, currentUserKey, cancellationToken);
+            var rules = ResolveRules(policy);
             if (rules.Count == 0)
             {
                 continue;
@@ -238,8 +229,7 @@ internal sealed class ContentCheckResolutionService : IContentCheckResolutionSer
         return matches;
     }
 
-    private async Task<List<ResolvedContentCheckRule>> ResolveRulesAsync(
-        ContentCheckPolicy policy, IContent content, Guid? currentUserKey, CancellationToken cancellationToken)
+    private List<ResolvedContentCheckRule> ResolveRules(ContentCheckPolicy policy)
     {
         var rules = new List<ResolvedContentCheckRule>();
         foreach (var rule in policy.Rules)
@@ -250,15 +240,12 @@ internal sealed class ContentCheckResolutionService : IContentCheckResolutionSer
                 continue;
             }
 
-            var response = await _guardResolutionService.ResolveResponseAsync(
-                content, rule.RequirementLevel, currentUserKey, cancellationToken);
-
             rules.Add(new ResolvedContentCheckRule
             {
                 Check = check,
                 Config = rule.Config,
                 RequirementLevel = rule.RequirementLevel,
-                Response = response,
+                NotEvaluatedPolicy = rule.NotEvaluatedPolicy,
             });
         }
 

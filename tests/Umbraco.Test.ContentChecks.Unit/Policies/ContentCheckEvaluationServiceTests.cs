@@ -12,7 +12,7 @@ namespace Umbraco.Community.ContentChecks.Tests.Unit.Policies;
 public class ContentCheckEvaluationServiceTests
 {
     [Test]
-    public async Task EvaluateAsync_ZipsEachEntryWithItsTargetPath_AndComputesOverallStatusAndBlockingFailure()
+    public async Task EvaluateAsync_ZipsEachEntryWithItsTargetPath_AndComputesOverallStatus()
     {
         var contentKey = Guid.NewGuid();
         var content = ContentTestFactory.Content(Guid.NewGuid(), key: contentKey).Object;
@@ -40,7 +40,7 @@ public class ContentCheckEvaluationServiceTests
                 {
                     Policy = rootPolicy,
                     Provenance = ContentCheckEffectiveCheckProvenance.Direct,
-                    Rules = [new ResolvedContentCheckRule { Check = passingCheck, Config = new ContentCheckConfig(), RequirementLevel = RequirementLevel.Recommended, Response = ContentCheckResponse.Warn }],
+                    Rules = [new ResolvedContentCheckRule { Check = passingCheck, Config = new ContentCheckConfig(), RequirementLevel = RequirementLevel.Recommended }],
                 },
             ],
             Path = [],
@@ -57,7 +57,7 @@ public class ContentCheckEvaluationServiceTests
                 {
                     Policy = testimonialPolicy,
                     Provenance = ContentCheckEffectiveCheckProvenance.Cascading,
-                    Rules = [new ResolvedContentCheckRule { Check = failingCheck, Config = new ContentCheckConfig(), RequirementLevel = RequirementLevel.Mandatory, Response = ContentCheckResponse.Block }],
+                    Rules = [new ResolvedContentCheckRule { Check = failingCheck, Config = new ContentCheckConfig(), RequirementLevel = RequirementLevel.Mandatory }],
                 },
             ],
             Path = [testimonialStep],
@@ -65,7 +65,7 @@ public class ContentCheckEvaluationServiceTests
 
         var resolutionService = new Mock<IContentCheckResolutionService>();
         resolutionService
-            .Setup(s => s.ResolveAsync(content, null, null, null, It.IsAny<CancellationToken>()))
+            .Setup(s => s.ResolveAsync(content, null, null, It.IsAny<CancellationToken>()))
             .ReturnsAsync([rootTarget, nestedTarget]);
 
         var runner = new ContentCheckRunner(new InMemoryContentCheckResultCache(), Mock.Of<IEventAggregator>());
@@ -84,10 +84,31 @@ public class ContentCheckEvaluationServiceTests
         Assert.That(nestedEntry.Path, Is.EqualTo(new[] { testimonialStep }));
 
         Assert.That(report.OverallStatus, Is.EqualTo(ContentCheckStatus.Fail));
-        Assert.That(report.HasBlockingFailure, Is.True);
 
         Assert.That(progress.Reports.Select(p => p.TargetsCompleted), Is.EqualTo(new[] { 0, 1, 2 }));
         Assert.That(progress.Reports, Has.All.Matches<ContentCheckEvaluationProgress>(p => p.TargetsTotal == 2));
+    }
+
+    [Test]
+    public async Task EvaluateAsync_StampsTheReportWithTheRootContentsOwnContentStamp()
+    {
+        var contentKey = Guid.NewGuid();
+        var content = ContentTestFactory.Content(Guid.NewGuid(), key: contentKey).Object;
+
+        var resolutionService = new Mock<IContentCheckResolutionService>();
+        resolutionService
+            .Setup(s => s.ResolveAsync(content, null, null, It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+
+        var runner = new ContentCheckRunner(new InMemoryContentCheckResultCache(), Mock.Of<IEventAggregator>());
+        var service = new ContentCheckEvaluationService(resolutionService.Object, runner);
+
+        var report = await service.EvaluateAsync(content);
+
+        // Never re-derive the stamp -- a report's ContentStamp must be exactly what a snapshot of
+        // this same content would produce, since a later reader compares them for equality.
+        var expectedStamp = new ContentCheckSnapshot(content).ContentStamp;
+        Assert.That(report.ContentStamp, Is.EqualTo(expectedStamp));
     }
 
     [Test]
@@ -97,7 +118,7 @@ public class ContentCheckEvaluationServiceTests
 
         var resolutionService = new Mock<IContentCheckResolutionService>();
         resolutionService
-            .Setup(s => s.ResolveAsync(content, null, null, null, It.IsAny<CancellationToken>()))
+            .Setup(s => s.ResolveAsync(content, null, null, It.IsAny<CancellationToken>()))
             .ReturnsAsync([]);
 
         var runner = new ContentCheckRunner(new InMemoryContentCheckResultCache(), Mock.Of<IEventAggregator>());
@@ -107,7 +128,6 @@ public class ContentCheckEvaluationServiceTests
 
         Assert.That(report.Entries, Is.Empty);
         Assert.That(report.OverallStatus, Is.EqualTo(ContentCheckStatus.NotApplicable));
-        Assert.That(report.HasBlockingFailure, Is.False);
     }
 
     private sealed class RecordingProgress<T> : IProgress<T>

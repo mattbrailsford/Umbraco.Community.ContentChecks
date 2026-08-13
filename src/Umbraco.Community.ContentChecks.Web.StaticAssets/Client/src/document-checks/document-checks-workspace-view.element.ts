@@ -3,17 +3,19 @@ import { UmbLitElement } from "@umbraco-cms/backoffice/lit-element";
 import { UmbTextStyles } from "@umbraco-cms/backoffice/style";
 import { UMB_ENTITY_CONTEXT } from "@umbraco-cms/backoffice/entity";
 import { tryExecute } from "@umbraco-cms/backoffice/resources";
-import { ApplicableChecksService, EvaluationService } from "../api/sdk.gen.js";
+import { ApplicableChecksService, CheckResultsService, EvaluationService } from "../api/sdk.gen.js";
 import type {
     ApplicableCheckTargetResponseModel,
+    ContentCheckAggregateReport,
     ContentCheckReportEntry,
     EvaluationItemResponseModel,
 } from "../api/types.gen.js";
 
 /**
  * One panel, not two: renders resolution's own per-item Applicable Checks as pending rows, then
- * fills each row in place as the live run reports results -- no separate "results" view to
- * reconcile against the pending one.
+ * fills each row in place -- either from the last completed run's persisted results (loaded on
+ * open, so a previous run's outcome shows without needing to re-run) or as a live run reports new
+ * ones. No separate "results" view to reconcile against the pending one.
  */
 @customElement("cc-document-checks-workspace-view")
 export class CcDocumentChecksWorkspaceViewElement extends UmbLitElement {
@@ -63,11 +65,17 @@ export class CcDocumentChecksWorkspaceViewElement extends UmbLitElement {
         if (!this._contentKey) return;
         this._isLoading = true;
         this._resultsByKey = new Map();
-        const { data } = await tryExecute(
-            this,
-            ApplicableChecksService.getApplicableChecksByContentKey({ path: { contentKey: this._contentKey } }),
-        );
-        this._targets = data ?? [];
+
+        const [{ data: targets }, { data: report }] = await Promise.all([
+            tryExecute(this, ApplicableChecksService.getApplicableChecksByContentKey({ path: { contentKey: this._contentKey } })),
+            tryExecute(this, CheckResultsService.getCheckResultsByContentKey({ path: { contentKey: this._contentKey } })),
+        ]);
+
+        this._targets = targets ?? [];
+        if (report) {
+            this.#applyReport(report);
+        }
+
         this._isLoading = false;
     }
 
@@ -164,8 +172,12 @@ export class CcDocumentChecksWorkspaceViewElement extends UmbLitElement {
         }
         if (!item.report) return;
 
+        this.#applyReport(item.report);
+    }
+
+    #applyReport(report: ContentCheckAggregateReport) {
         const next = new Map(this._resultsByKey);
-        for (const entry of item.report.entries) {
+        for (const entry of report.entries) {
             next.set(this.#resultKey(entry.path, entry.entry.checkAlias), entry.entry);
         }
         this._resultsByKey = next;

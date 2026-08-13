@@ -15,29 +15,28 @@ public sealed class ContentCheckAggregateReport
     public required Guid ContentKey { get; init; }
 
     /// <summary>
+    /// The root content item's <see cref="IContentCheckSnapshot.ContentStamp"/> as of this run —
+    /// <c>null</c> if the root snapshot couldn't provide one. A nested element has no stamp of its
+    /// own worth tracking here: it's stored as part of the root item's own property values, so any
+    /// change to it already moves the root's own stamp too. This is what lets a later reader (a
+    /// results panel, or the future publish gate) tell whether this report still reflects the
+    /// content as it currently stands, or is stale from before an edit.
+    /// </summary>
+    public string? ContentStamp { get; init; }
+
+    /// <summary>
     /// Every entry from every resolved target, flattened into one list.
     /// </summary>
     public required IReadOnlyList<ContentCheckAggregateReportEntry> Entries { get; init; }
 
     /// <summary>
-    /// The worst status across every entry, everywhere — for a results-panel badge. Answers "how
-    /// bad is it," a genuinely different question from <see cref="HasBlockingFailure"/>'s "should
-    /// this block the publish" — a page can have a real, failing check that resolved to
-    /// <see cref="ContentCheckResponse.Warn"/>, worth showing red here but nothing a gate should
-    /// stop on.
+    /// The worst status across every entry, everywhere — for a results-panel badge. A report has
+    /// no fixed answer to "does this block anyone" — that depends on who's asking, decided fresh at
+    /// publish time by a Guard (see docs/guard-spec.md), never baked into a stored run.
     /// </summary>
     public ContentCheckStatus OverallStatus => Entries.Count == 0
         ? ContentCheckStatus.NotApplicable
         : Entries.Select(e => e.Entry.Result.Status).Min(StatusSeverityComparer.Instance);
-
-    /// <summary>
-    /// Whether any entry resolved to <see cref="ContentCheckResponse.Block"/> and failed. The
-    /// exact condition the Phase 1 runner already computes internally to short-circuit metered
-    /// checks, just widened from "free rules only" to every rule in every snapshot now that this
-    /// report has all of them.
-    /// </summary>
-    public bool HasBlockingFailure => Entries.Any(e =>
-        e.Entry.Response == ContentCheckResponse.Block && e.Entry.Result.Status == ContentCheckStatus.Fail);
 
     /// <summary>
     /// Orders <see cref="ContentCheckStatus"/> by severity — <c>Fail &gt; Warn &gt; NotEvaluated &gt;

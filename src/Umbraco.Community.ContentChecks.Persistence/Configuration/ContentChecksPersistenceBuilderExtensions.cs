@@ -1,8 +1,10 @@
 using Microsoft.Extensions.DependencyInjection;
 using Umbraco.Cms.Core.DependencyInjection;
 using Umbraco.Cms.Core.Notifications;
+using Umbraco.Community.ContentChecks.Core.Checks;
 using Umbraco.Community.ContentChecks.Core.Policies;
 using Umbraco.Community.ContentChecks.Persistence;
+using Umbraco.Community.ContentChecks.Persistence.Checks;
 using Umbraco.Community.ContentChecks.Persistence.Notifications;
 using Umbraco.Community.ContentChecks.Persistence.Policies;
 using Umbraco.Extensions;
@@ -33,6 +35,9 @@ public static class ContentChecksPersistenceBuilderExtensions
 
         builder.Services.AddSingleton<IGuardFactory, GuardFactory>();
         builder.Services.AddSingleton<IGuardRepository, EFCoreGuardRepository>();
+
+        builder.Services.AddSingleton<IContentCheckResultFactory, ContentCheckResultFactory>();
+        builder.Services.AddSingleton<IContentCheckResultRepository, EFCoreContentCheckResultRepository>();
 
         builder.AddNotificationAsyncHandler<UmbracoApplicationStartedNotification, RunContentChecksMigrationNotificationHandler>();
 

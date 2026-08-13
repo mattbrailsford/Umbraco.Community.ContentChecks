@@ -12,9 +12,11 @@ namespace Umbraco.Community.ContentChecks.Core.Checks;
 /// what scheduling actually needs:
 /// <list type="number">
 /// <item>Every <c>Free</c> rule runs first, always.</item>
-/// <item>If any <c>Free</c> rule resolves to <see cref="ContentCheckResponse.Block"/> and produced <see cref="ContentCheckStatus.Fail"/>,
+/// <item>If any <c>Free</c> rule at <see cref="RequirementLevel.Mandatory"/> produced <see cref="ContentCheckStatus.Fail"/>,
 /// every <c>Metered</c> rule short-circuits straight to <see cref="ContentCheckNotEvaluatedReason.ShortCircuited"/>
-/// — no expensive call is made.</item>
+/// — no expensive call is made. This is a cost decision, not an enforcement one: a run never
+/// resolves who a failure blocks (see docs/guard-spec.md), so it short-circuits on how important a
+/// failing rule is declared to be, not on whether it would go on to block anyone.</item>
 /// <item>Otherwise every <c>Metered</c> rule runs, concurrently, up to a per-run cap.</item>
 /// </list>
 /// </remarks>
@@ -49,16 +51,16 @@ internal sealed class ContentCheckRunner : IContentCheckRunner
             entries.Add(await RunRuleAsync(rule, request, cancellationToken));
         }
 
-        var blockingFreeFailure = entries.Any(e =>
-            e.Response == ContentCheckResponse.Block && e.Result.Status == ContentCheckStatus.Fail);
+        var mandatoryFreeFailure = entries.Any(e =>
+            e.RequirementLevel == RequirementLevel.Mandatory && e.Result.Status == ContentCheckStatus.Fail);
 
-        if (blockingFreeFailure)
+        if (mandatoryFreeFailure)
         {
             entries.AddRange(meteredRules.Select(rule => new ContentCheckReportEntry
             {
                 CheckAlias = rule.Check.Alias,
                 RequirementLevel = rule.RequirementLevel,
-                Response = rule.Response,
+                NotEvaluatedPolicy = rule.NotEvaluatedPolicy,
                 Result = new ContentCheckResult
                 {
                     Status = ContentCheckStatus.NotEvaluated,
@@ -124,7 +126,7 @@ internal sealed class ContentCheckRunner : IContentCheckRunner
                 {
                     CheckAlias = rule.Check.Alias,
                     RequirementLevel = rule.RequirementLevel,
-                    Response = rule.Response,
+                    NotEvaluatedPolicy = rule.NotEvaluatedPolicy,
                     Result = cached,
                     Elapsed = TimeSpan.Zero,
                 };
@@ -164,7 +166,7 @@ internal sealed class ContentCheckRunner : IContentCheckRunner
         {
             CheckAlias = rule.Check.Alias,
             RequirementLevel = rule.RequirementLevel,
-            Response = rule.Response,
+            NotEvaluatedPolicy = rule.NotEvaluatedPolicy,
             Result = result,
             Elapsed = stopwatch.Elapsed,
         };

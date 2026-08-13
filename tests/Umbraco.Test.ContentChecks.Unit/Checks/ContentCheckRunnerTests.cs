@@ -25,18 +25,16 @@ public class ContentCheckRunnerTests
 
     private static ResolvedContentCheckRule Rule(
         FakeContentCheck check,
-        RequirementLevel requirementLevel = RequirementLevel.Recommended,
-        ContentCheckResponse response = ContentCheckResponse.Warn)
+        RequirementLevel requirementLevel = RequirementLevel.Recommended)
         => new()
         {
             Check = check,
             Config = new ContentCheckConfig(),
             RequirementLevel = requirementLevel,
-            Response = response,
         };
 
     [Test]
-    public async Task RunAsync_BlockingFreeFailure_ShortCircuitsMeteredRules()
+    public async Task RunAsync_MandatoryFreeFailure_ShortCircuitsMeteredRules()
     {
         var freeCheck = new FakeContentCheck(
             "free-blocking",
@@ -55,8 +53,8 @@ public class ContentCheckRunnerTests
             Content = CreateSnapshot(),
             Rules =
             [
-                Rule(freeCheck, RequirementLevel.Mandatory, ContentCheckResponse.Block),
-                Rule(meteredCheck, RequirementLevel.Optional, ContentCheckResponse.Warn),
+                Rule(freeCheck, RequirementLevel.Mandatory),
+                Rule(meteredCheck, RequirementLevel.Optional),
             ],
         };
 
@@ -69,7 +67,7 @@ public class ContentCheckRunnerTests
     }
 
     [Test]
-    public async Task RunAsync_NoBlockingFreeFailure_RunsMeteredRules()
+    public async Task RunAsync_NoMandatoryFreeFailure_RunsMeteredRules()
     {
         var freeCheck = new FakeContentCheck(
             "free",
@@ -88,8 +86,8 @@ public class ContentCheckRunnerTests
             Content = CreateSnapshot(),
             Rules =
             [
-                Rule(freeCheck, RequirementLevel.Mandatory, ContentCheckResponse.Block),
-                Rule(meteredCheck, RequirementLevel.Optional, ContentCheckResponse.Warn),
+                Rule(freeCheck, RequirementLevel.Mandatory),
+                Rule(meteredCheck, RequirementLevel.Optional),
             ],
         };
 

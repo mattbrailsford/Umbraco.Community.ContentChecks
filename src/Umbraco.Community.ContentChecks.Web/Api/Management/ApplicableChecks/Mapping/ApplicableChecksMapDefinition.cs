@@ -46,6 +46,5 @@ public class ApplicableChecksMapDefinition : IMapDefinition
         target.CheckAlias = source.Check.Alias;
         target.CheckName = source.Check.Name;
         target.RequirementLevel = source.RequirementLevel;
-        target.Response = source.Response;
     }
 }

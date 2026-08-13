@@ -164,6 +164,23 @@ public static class Constants
                 /// </summary>
                 public const int MaxBatchSize = 50;
             }
+
+            /// <summary>
+            /// Defines constants for the check results feature — the last completed run's
+            /// persisted results for a content item, read without needing a live run in progress.
+            /// </summary>
+            public static class CheckResults
+            {
+                /// <summary>
+                /// The route segment for check results features.
+                /// </summary>
+                public const string RouteSegment = "check-results";
+
+                /// <summary>
+                /// The Swagger group name for check results features.
+                /// </summary>
+                public const string GroupName = "Check Results";
+            }
         }
     }
 }

@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Umbraco.Cms.Core.Services;
+using Umbraco.Community.ContentChecks.Core.Checks;
 using Umbraco.Community.ContentChecks.Core.Policies;
 
 namespace Umbraco.Community.ContentChecks.Web.Runs;
@@ -92,6 +93,7 @@ internal sealed class ContentCheckRunBackgroundService : BackgroundService
             using var scope = _scopeFactory.CreateScope();
             var contentService = scope.ServiceProvider.GetRequiredService<IContentService>();
             var evaluationService = scope.ServiceProvider.GetRequiredService<IContentCheckEvaluationService>();
+            var resultService = scope.ServiceProvider.GetRequiredService<IContentCheckResultService>();
 
             var content = contentService.GetById(contentKey);
             if (content is null)
@@ -102,6 +104,24 @@ internal sealed class ContentCheckRunBackgroundService : BackgroundService
 
             var progress = new Progress<ContentCheckEvaluationProgress>(p => run.UpdateProgress(contentKey, p));
             var report = await evaluationService.EvaluateAsync(content, progress: progress, cancellationToken: cancellationToken);
+
+            // Persisted only once the run for this item has fully succeeded -- a run that fails
+            // partway through must never wipe out a previous good run's results, so "clear before a
+            // run" is really "replace once new results exist," applied here rather than up front.
+            var ranAtUtc = DateTime.UtcNow;
+            var storedResults = report.Entries.Select(entry => new ContentCheckStoredResult
+            {
+                ContentKey = contentKey,
+                ContentStamp = report.ContentStamp,
+                Path = entry.Path,
+                CheckAlias = entry.Entry.CheckAlias,
+                RequirementLevel = entry.Entry.RequirementLevel,
+                NotEvaluatedPolicy = entry.Entry.NotEvaluatedPolicy,
+                Result = entry.Entry.Result,
+                RanAtUtc = ranAtUtc,
+            }).ToList();
+            await resultService.ReplaceForContentAsync(contentKey, culture: null, segment: null, storedResults, cancellationToken);
+
             run.CompleteItem(contentKey, report);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)

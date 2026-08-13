@@ -2,7 +2,7 @@
 
 import type { Client, Options as Options2, TDataShape } from './client';
 import { client } from './client.gen';
-import type { DeleteGuardsByKeyData, DeleteGuardsByKeyErrors, DeleteGuardsByKeyResponses, DeleteFoldersByKeyData, DeleteFoldersByKeyErrors, DeleteFoldersByKeyResponses, DeletePoliciesByKeyData, DeletePoliciesByKeyErrors, DeletePoliciesByKeyResponses, GetApplicableChecksByContentKeyData, GetApplicableChecksByContentKeyErrors, GetApplicableChecksByContentKeyResponses, GetCheckTypesData, GetCheckTypesErrors, GetCheckTypesResponses, GetGuardsByKeyData, GetGuardsByKeyErrors, GetGuardsByKeyResponses, GetGuardsData, GetGuardsErrors, GetGuardsResponses, GetEvaluationByRunIdData, GetEvaluationByRunIdErrors, GetEvaluationByRunIdResponses, GetEvaluationByRunIdStreamData, GetEvaluationByRunIdStreamErrors, GetEvaluationByRunIdStreamResponses, GetFoldersByKeyData, GetFoldersByKeyErrors, GetFoldersByKeyResponses, GetPoliciesByKeyData, GetPoliciesByKeyErrors, GetPoliciesByKeyResponses, GetPoliciesData, GetPoliciesErrors, GetPoliciesResponses, GetTreeByKeyAncestorsData, GetTreeByKeyAncestorsErrors, GetTreeByKeyAncestorsResponses, GetTreeChildrenData, GetTreeChildrenErrors, GetTreeChildrenResponses, PostGuardsData, PostGuardsErrors, PostGuardsResponses, PostEvaluationData, PostEvaluationErrors, PostEvaluationResponses, PostFoldersData, PostFoldersErrors, PostFoldersResponses, PostPoliciesData, PostPoliciesErrors, PostPoliciesResponses, PutGuardsByKeyData, PutGuardsByKeyErrors, PutGuardsByKeyResponses, PutFoldersByKeyData, PutFoldersByKeyErrors, PutFoldersByKeyResponses, PutPoliciesByKeyData, PutPoliciesByKeyErrors, PutPoliciesByKeyResponses } from './types.gen';
+import type { DeleteGuardsByKeyData, DeleteGuardsByKeyErrors, DeleteGuardsByKeyResponses, DeleteFoldersByKeyData, DeleteFoldersByKeyErrors, DeleteFoldersByKeyResponses, DeletePoliciesByKeyData, DeletePoliciesByKeyErrors, DeletePoliciesByKeyResponses, GetApplicableChecksByContentKeyData, GetApplicableChecksByContentKeyErrors, GetApplicableChecksByContentKeyResponses, GetCheckResultsByContentKeyData, GetCheckResultsByContentKeyErrors, GetCheckResultsByContentKeyResponses, GetCheckTypesData, GetCheckTypesErrors, GetCheckTypesResponses, GetGuardsByKeyData, GetGuardsByKeyErrors, GetGuardsByKeyResponses, GetGuardsData, GetGuardsErrors, GetGuardsResponses, GetEvaluationByRunIdData, GetEvaluationByRunIdErrors, GetEvaluationByRunIdResponses, GetEvaluationByRunIdStreamData, GetEvaluationByRunIdStreamErrors, GetEvaluationByRunIdStreamResponses, GetFoldersByKeyData, GetFoldersByKeyErrors, GetFoldersByKeyResponses, GetPoliciesByKeyData, GetPoliciesByKeyErrors, GetPoliciesByKeyResponses, GetPoliciesData, GetPoliciesErrors, GetPoliciesResponses, GetTreeByKeyAncestorsData, GetTreeByKeyAncestorsErrors, GetTreeByKeyAncestorsResponses, GetTreeChildrenData, GetTreeChildrenErrors, GetTreeChildrenResponses, PostGuardsData, PostGuardsErrors, PostGuardsResponses, PostEvaluationData, PostEvaluationErrors, PostEvaluationResponses, PostFoldersData, PostFoldersErrors, PostFoldersResponses, PostPoliciesData, PostPoliciesErrors, PostPoliciesResponses, PutGuardsByKeyData, PutGuardsByKeyErrors, PutGuardsByKeyResponses, PutFoldersByKeyData, PutFoldersByKeyErrors, PutFoldersByKeyResponses, PutPoliciesByKeyData, PutPoliciesByKeyErrors, PutPoliciesByKeyResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -23,6 +23,16 @@ export class ApplicableChecksService {
         return (options.client ?? client).get<GetApplicableChecksByContentKeyResponses, GetApplicableChecksByContentKeyErrors, ThrowOnError>({
             security: [{ scheme: 'bearer', type: 'http' }],
             url: '/umbraco/content-checks/management/api/v1/applicable-checks/{contentKey}',
+            ...options
+        });
+    }
+}
+
+export class CheckResultsService {
+    public static getCheckResultsByContentKey<ThrowOnError extends boolean = false>(options: Options<GetCheckResultsByContentKeyData, ThrowOnError>) {
+        return (options.client ?? client).get<GetCheckResultsByContentKeyResponses, GetCheckResultsByContentKeyErrors, ThrowOnError>({
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/umbraco/content-checks/management/api/v1/check-results/{contentKey}',
             ...options
         });
     }

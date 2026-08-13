@@ -49,6 +49,8 @@ public static class ContentChecksBuilderExtensions
         builder.Services.AddSingleton<IContentCheckConfigResolver, ContentCheckConfigResolver>();
         builder.Services.AddSingleton<IContentCheckInfrastructure, ContentCheckInfrastructure>();
         builder.Services.AddSingleton<IContentCheckResultCache, InMemoryContentCheckResultCache>();
+        builder.Services.AddSingleton<IContentCheckResultRepository, InMemoryContentCheckResultRepository>();
+        builder.Services.AddSingleton<IContentCheckResultService, ContentCheckResultService>();
         builder.Services.AddSingleton<IContentCheckRunner, ContentCheckRunner>();
 
         // Check types are auto-discovered via [ContentCheck] + IDiscoverable -- not
@@ -67,6 +69,7 @@ public static class ContentChecksBuilderExtensions
         builder.Services.AddSingleton<IGuardRepository, InMemoryGuardRepository>();
         builder.Services.AddSingleton<IGuardService, GuardService>();
         builder.Services.AddSingleton<IGuardResolutionService, ContentCheckGuardResolutionService>();
+        builder.Services.AddSingleton<IContentCheckPublishGateService, ContentCheckPublishGateService>();
 
         builder.Services.AddSingleton<IContentCheckResolutionService, ContentCheckResolutionService>();
         builder.Services.AddSingleton<IContentCheckEffectiveChecksService, ContentCheckEffectiveChecksService>();

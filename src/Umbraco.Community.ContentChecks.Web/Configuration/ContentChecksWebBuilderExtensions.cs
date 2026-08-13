@@ -8,6 +8,7 @@ using Umbraco.Cms.Api.Common.OpenApi;
 using Umbraco.Cms.Api.Management.OpenApi;
 using Umbraco.Cms.Core.DependencyInjection;
 using Umbraco.Cms.Core.Mapping;
+using Umbraco.Cms.Core.Notifications;
 using Umbraco.Community.ContentChecks.Core;
 using Umbraco.Community.ContentChecks.Web;
 using Umbraco.Community.ContentChecks.Web.Api.Common.Configuration;
@@ -19,6 +20,7 @@ using Umbraco.Community.ContentChecks.Web.Api.Management.Folders.Mapping;
 using Umbraco.Community.ContentChecks.Web.Api.Management.Policies.Mapping;
 using Umbraco.Community.ContentChecks.Web.Authorization;
 using Umbraco.Community.ContentChecks.Web.Runs;
+using Umbraco.Community.ContentChecks.Web.Triggers;
 
 namespace Umbraco.Community.ContentChecks.Extensions;
 
@@ -73,6 +75,12 @@ public static class ContentChecksWebBuilderExtensions
         builder.Services.AddSingleton<IContentCheckRunTracker, ContentCheckRunTracker>();
         builder.Services.AddSingleton<IContentCheckRunQueue, ContentCheckRunQueue>();
         builder.Services.AddHostedService<ContentCheckRunBackgroundService>();
+
+        // The publish gate: cancels a publish when the content's last stored report blocks the
+        // current user. Needs IHttpContextAccessor to tell an interactive publish (blockable) apart
+        // from a scheduled/background one (never blocked) -- see docs/triggers-spec.md.
+        builder.Services.AddHttpContextAccessor();
+        builder.AddNotificationAsyncHandler<ContentPublishingNotification, ContentPublishingGateHandler>();
 
         builder.WithCollectionBuilder<MapDefinitionCollectionBuilder>()
             .Add<PolicyMapDefinition>()

@@ -22,7 +22,6 @@ export type ApplicableRuleResponseModel = {
     checkAlias: string;
     checkName: string;
     requirementLevel: RequirementLevel;
-    response: ContentCheckResponse;
 };
 
 export type CheckConfigFieldResponseModel = {
@@ -52,9 +51,9 @@ export type CheckTypeResponseModel = {
 
 export type ContentCheckAggregateReport = {
     contentKey: string;
+    contentStamp?: null | string;
     entries: Array<ContentCheckAggregateReportEntry>;
     overallStatus: ContentCheckStatus;
-    hasBlockingFailure: boolean;
 };
 
 export type ContentCheckAggregateReportEntry = {
@@ -85,12 +84,9 @@ export type ContentCheckNotEvaluatedReason = 'ShortCircuited' | 'Error';
 export type ContentCheckReportEntry = {
     checkAlias: string;
     requirementLevel: RequirementLevel;
-    response: ContentCheckResponse;
     result: ContentCheckResult;
     elapsed: string;
 };
-
-export type ContentCheckResponse = 'Warn' | 'Block';
 
 export type ContentCheckResult = {
     status: ContentCheckStatus;
@@ -244,6 +240,34 @@ export type GetApplicableChecksByContentKeyResponses = {
 };
 
 export type GetApplicableChecksByContentKeyResponse = GetApplicableChecksByContentKeyResponses[keyof GetApplicableChecksByContentKeyResponses];
+
+export type GetCheckResultsByContentKeyData = {
+    body?: never;
+    path: {
+        contentKey: string;
+    };
+    query?: {
+        culture?: string;
+        segment?: string;
+    };
+    url: '/umbraco/content-checks/management/api/v1/check-results/{contentKey}';
+};
+
+export type GetCheckResultsByContentKeyErrors = {
+    /**
+     * The resource is protected and requires an authentication token
+     */
+    401: unknown;
+};
+
+export type GetCheckResultsByContentKeyResponses = {
+    /**
+     * OK
+     */
+    200: ContentCheckAggregateReport;
+};
+
+export type GetCheckResultsByContentKeyResponse = GetCheckResultsByContentKeyResponses[keyof GetCheckResultsByContentKeyResponses];
 
 export type GetCheckTypesData = {
     body?: never;

@@ -18,10 +18,10 @@ public sealed class ContentCheckReportEntry
     public required RequirementLevel RequirementLevel { get; init; }
 
     /// <summary>
-    /// What this rule's failure actually does, resolved for whoever triggered this run. See
-    /// docs/guard-spec.md.
+    /// How a <see cref="ContentCheckStatus.NotEvaluated"/> result from this rule should be treated
+    /// by a gate — see docs/guard-spec.md.
     /// </summary>
-    public required ContentCheckResponse Response { get; init; }
+    public Policies.ContentCheckNotEvaluatedPolicy NotEvaluatedPolicy { get; init; } = Policies.ContentCheckNotEvaluatedPolicy.FailOpen;
 
     /// <summary>
     /// The result the check produced.

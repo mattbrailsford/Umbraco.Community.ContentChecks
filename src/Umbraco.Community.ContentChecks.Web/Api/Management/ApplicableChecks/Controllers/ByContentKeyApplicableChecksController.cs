@@ -2,7 +2,6 @@ using Asp.Versioning;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Umbraco.Cms.Core.Mapping;
-using Umbraco.Cms.Core.Security;
 using Umbraco.Cms.Core.Services;
 using Umbraco.Community.ContentChecks.Core.Policies;
 using Umbraco.Community.ContentChecks.Web.Api.Management.ApplicableChecks.Models;
@@ -20,7 +19,6 @@ public class ByContentKeyApplicableChecksController : ApplicableChecksController
     private readonly IContentService _contentService;
     private readonly IContentCheckResolutionService _resolutionService;
     private readonly IUmbracoMapper _umbracoMapper;
-    private readonly IBackOfficeSecurityAccessor _backOfficeSecurityAccessor;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ByContentKeyApplicableChecksController"/> class.
@@ -28,17 +26,14 @@ public class ByContentKeyApplicableChecksController : ApplicableChecksController
     /// <param name="contentService">Resolves a content item by key.</param>
     /// <param name="resolutionService">Resolves every applicable target for a content item.</param>
     /// <param name="umbracoMapper">Maps resolved targets to API response models.</param>
-    /// <param name="backOfficeSecurityAccessor">Resolves the current backoffice user, for guard row matching.</param>
     public ByContentKeyApplicableChecksController(
         IContentService contentService,
         IContentCheckResolutionService resolutionService,
-        IUmbracoMapper umbracoMapper,
-        IBackOfficeSecurityAccessor backOfficeSecurityAccessor)
+        IUmbracoMapper umbracoMapper)
     {
         _contentService = contentService;
         _resolutionService = resolutionService;
         _umbracoMapper = umbracoMapper;
-        _backOfficeSecurityAccessor = backOfficeSecurityAccessor;
     }
 
     /// <summary>
@@ -62,8 +57,7 @@ public class ByContentKeyApplicableChecksController : ApplicableChecksController
             return ContentNotFound();
         }
 
-        var currentUserKey = _backOfficeSecurityAccessor.BackOfficeSecurity?.CurrentUser?.Key;
-        var targets = await _resolutionService.ResolveAsync(content, culture, segment, currentUserKey, cancellationToken: cancellationToken);
+        var targets = await _resolutionService.ResolveAsync(content, culture, segment, cancellationToken);
         return Ok(_umbracoMapper.MapEnumerable<ContentCheckResolvedTarget, ApplicableCheckTargetResponseModel>(targets));
     }
 }

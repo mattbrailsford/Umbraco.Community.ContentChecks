@@ -25,8 +25,7 @@ public class ContentCheckResolutionServiceTests
             new ContentCheckCollection(() => checks),
             new ContentCheckElementSourceCollection(() => elementSources),
             contentTypeService.Object,
-            new Mock<IEntityService>().Object,
-            new Mock<IGuardResolutionService>().Object);
+            new Mock<IEntityService>().Object);
 
     [Test]
     public async Task ResolveAsync_DirectMatch_ReturnsRootTargetWithItsRules()

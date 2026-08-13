@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Umbraco.Cms.Core;
+using Umbraco.Community.ContentChecks.Persistence.Checks;
 using Umbraco.Community.ContentChecks.Persistence.Policies;
 
 namespace Umbraco.Community.ContentChecks.Persistence;
@@ -28,6 +29,11 @@ public class ContentChecksDbContext : DbContext
     /// Guards.
     /// </summary>
     internal DbSet<GuardEntity> Guards { get; set; } = null!;
+
+    /// <summary>
+    /// The last completed run's persisted check results, per content item.
+    /// </summary>
+    internal DbSet<ContentCheckResultEntity> Results { get; set; } = null!;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ContentChecksDbContext"/> class.
@@ -129,6 +135,36 @@ public class ContentChecksDbContext : DbContext
 
             entity.Property(e => e.RulesJson)
                 .IsRequired();
+        });
+
+        modelBuilder.Entity<ContentCheckResultEntity>(entity =>
+        {
+            entity.ToTable("umbracoCommunityContentChecksResult");
+            entity.HasKey(e => e.Key);
+
+            entity.Property(e => e.CheckAlias)
+                .HasMaxLength(100)
+                .IsRequired();
+
+            entity.Property(e => e.ContentStamp)
+                .HasMaxLength(100);
+
+            entity.Property(e => e.Culture)
+                .HasMaxLength(10);
+
+            entity.Property(e => e.Segment)
+                .HasMaxLength(100);
+
+            entity.Property(e => e.PathJson)
+                .IsRequired();
+
+            entity.Property(e => e.ResultJson)
+                .IsRequired();
+
+            // The only query shapes this table needs to serve: "every result for this content item
+            // (+ culture/segment)" to load a results panel, and the same filter to clear before
+            // replacing -- one composite index covers both.
+            entity.HasIndex(e => new { e.ContentKey, e.Culture, e.Segment });
         });
     }
 }

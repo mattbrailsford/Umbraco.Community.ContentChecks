@@ -22,6 +22,56 @@ namespace Umbraco.Community.ContentChecks.Persistence.SqlServer.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
+            modelBuilder.Entity("Umbraco.Community.ContentChecks.Persistence.Checks.ContentCheckResultEntity", b =>
+                {
+                    b.Property<Guid>("Key")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("CheckAlias")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<Guid>("ContentKey")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ContentStamp")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Culture")
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.Property<int>("NotEvaluatedPolicy")
+                        .HasColumnType("int");
+
+                    b.Property<string>("PathJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("RanAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("RequirementLevel")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ResultJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Segment")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("Key");
+
+                    b.HasIndex("ContentKey", "Culture", "Segment");
+
+                    b.ToTable("umbracoCommunityContentChecksResult", (string)null);
+                });
+
             modelBuilder.Entity("Umbraco.Community.ContentChecks.Persistence.Policies.ContentCheckPolicyEntity", b =>
                 {
                     b.Property<Guid>("Key")

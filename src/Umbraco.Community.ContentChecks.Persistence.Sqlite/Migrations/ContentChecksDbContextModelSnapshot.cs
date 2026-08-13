@@ -17,6 +17,56 @@ namespace Umbraco.Community.ContentChecks.Persistence.Sqlite.Migrations
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.7");
 
+            modelBuilder.Entity("Umbraco.Community.ContentChecks.Persistence.Checks.ContentCheckResultEntity", b =>
+                {
+                    b.Property<Guid>("Key")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CheckAlias")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("ContentKey")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ContentStamp")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Culture")
+                        .HasMaxLength(10)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("NotEvaluatedPolicy")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("PathJson")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("RanAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("RequirementLevel")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("ResultJson")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Segment")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Key");
+
+                    b.HasIndex("ContentKey", "Culture", "Segment");
+
+                    b.ToTable("umbracoCommunityContentChecksResult", (string)null);
+                });
+
             modelBuilder.Entity("Umbraco.Community.ContentChecks.Persistence.Policies.ContentCheckPolicyEntity", b =>
                 {
                     b.Property<Guid>("Key")

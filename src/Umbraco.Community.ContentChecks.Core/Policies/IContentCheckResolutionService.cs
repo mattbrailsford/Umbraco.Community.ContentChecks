@@ -16,18 +16,11 @@ public interface IContentCheckResolutionService
     /// <param name="content">The content item to resolve policies for.</param>
     /// <param name="culture">The culture to read variant property values for.</param>
     /// <param name="segment">The segment to read segmented property values for.</param>
-    /// <param name="currentUserKey">
-    /// The user each rule's <see cref="Checks.ContentCheckResponse"/> is resolved for, or
-    /// <c>null</c> if there isn't one (e.g. a background run) — resolves to
-    /// <see cref="Checks.ContentCheckResponse.Warn"/> for every rule either way unless an
-    /// Guard says otherwise. See docs/guard-spec.md.
-    /// </param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>Every target with at least one applicable rule.</returns>
     Task<IReadOnlyList<ContentCheckResolvedTarget>> ResolveAsync(
         IContent content,
         string? culture = null,
         string? segment = null,
-        Guid? currentUserKey = null,
         CancellationToken cancellationToken = default);
 }
