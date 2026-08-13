@@ -21,6 +21,13 @@ public static class Constants
         public const string BackofficePath = "/content-checks/management/api";
 
         /// <summary>
+        /// The path <see cref="Runs.ContentCheckRunHub"/> is mapped to. Starts with <c>/umbraco/</c>
+        /// so it falls under Umbraco's own reserved-paths default, rather than needing a package
+        /// consumer to add anything to their own configuration.
+        /// </summary>
+        public const string RunHubPath = "/umbraco/content-checks/run-hub";
+
+        /// <summary>
         /// The API title.
         /// </summary>
         public const string ApiTitle = "Umbraco Content Checks Management API";

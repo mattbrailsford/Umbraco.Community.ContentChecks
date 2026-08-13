@@ -50,9 +50,6 @@ namespace Umbraco.Community.ContentChecks.Persistence.SqlServer.Migrations
                     b.Property<DateTime>("RanAtUtc")
                         .HasColumnType("datetime2");
 
-                    b.Property<int>("RequirementLevel")
-                        .HasColumnType("int");
-
                     b.Property<string>("ResultJson")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");

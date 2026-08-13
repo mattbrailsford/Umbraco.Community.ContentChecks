@@ -16,13 +16,6 @@ namespace Umbraco.Community.ContentChecks.Persistence.Sqlite.Migrations
                 type: "TEXT",
                 maxLength: 100,
                 nullable: true);
-
-            migrationBuilder.AddColumn<int>(
-                name: "NotEvaluatedPolicy",
-                table: "umbracoCommunityContentChecksResult",
-                type: "INTEGER",
-                nullable: false,
-                defaultValue: 0);
         }
 
         /// <inheritdoc />
@@ -30,10 +23,6 @@ namespace Umbraco.Community.ContentChecks.Persistence.Sqlite.Migrations
         {
             migrationBuilder.DropColumn(
                 name: "ContentStamp",
-                table: "umbracoCommunityContentChecksResult");
-
-            migrationBuilder.DropColumn(
-                name: "NotEvaluatedPolicy",
                 table: "umbracoCommunityContentChecksResult");
         }
     }

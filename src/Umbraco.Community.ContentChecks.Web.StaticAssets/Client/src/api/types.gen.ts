@@ -19,6 +19,7 @@ export type ApplicablePolicyMatchResponseModel = {
 };
 
 export type ApplicableRuleResponseModel = {
+    ruleKey: string;
     checkAlias: string;
     checkName: string;
     requirementLevel: RequirementLevel;
@@ -83,6 +84,7 @@ export type ContentCheckNotEvaluatedReason = 'ShortCircuited' | 'Error';
 
 export type ContentCheckReportEntry = {
     checkAlias: string;
+    ruleKey: string;
     requirementLevel: RequirementLevel;
     result: ContentCheckResult;
     elapsed: string;
@@ -175,6 +177,7 @@ export type PolicyResponseModel = {
 };
 
 export type PolicyRuleModel = {
+    key: string;
     checkAlias: string;
     config?: null | JsonElement;
     requirementLevel: RequirementLevel;
@@ -351,29 +354,6 @@ export type GetEvaluationByRunIdResponses = {
 };
 
 export type GetEvaluationByRunIdResponse = GetEvaluationByRunIdResponses[keyof GetEvaluationByRunIdResponses];
-
-export type GetEvaluationByRunIdStreamData = {
-    body?: never;
-    path: {
-        runId: string;
-    };
-    query?: never;
-    url: '/umbraco/content-checks/management/api/v1/evaluation/{runId}/stream';
-};
-
-export type GetEvaluationByRunIdStreamErrors = {
-    /**
-     * The resource is protected and requires an authentication token
-     */
-    401: unknown;
-};
-
-export type GetEvaluationByRunIdStreamResponses = {
-    /**
-     * OK
-     */
-    200: unknown;
-};
 
 export type PostFoldersData = {
     body: FolderRequestModel;

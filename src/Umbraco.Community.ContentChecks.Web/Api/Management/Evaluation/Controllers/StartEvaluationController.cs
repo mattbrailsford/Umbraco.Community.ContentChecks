@@ -29,8 +29,8 @@ public class StartEvaluationController : EvaluationControllerBase
 
     /// <summary>
     /// Start a run against one or more content items. Returns immediately, before any content
-    /// has been checked — poll <see cref="GetEvaluationRunController.GetRun"/> or watch
-    /// <see cref="StreamEvaluationRunController.StreamRun"/> for progress.
+    /// has been checked — poll <see cref="GetEvaluationRunController.GetRun"/>, or join the run's
+    /// group on <see cref="Runs.ContentCheckRunHub"/> to be pushed progress as it happens.
     /// </summary>
     /// <param name="requestModel">The content items to evaluate.</param>
     /// <returns>The new run's id.</returns>

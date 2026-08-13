@@ -21,7 +21,6 @@ namespace Umbraco.Community.ContentChecks.Persistence.SqlServer.Migrations
                     Segment = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
                     PathJson = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     CheckAlias = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
-                    RequirementLevel = table.Column<int>(type: "int", nullable: false),
                     ResultJson = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     RanAtUtc = table.Column<DateTime>(type: "datetime2", nullable: false)
                 },

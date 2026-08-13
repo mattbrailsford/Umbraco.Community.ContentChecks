@@ -28,6 +28,7 @@ public class ContentCheckRunnerTests
         RequirementLevel requirementLevel = RequirementLevel.Recommended)
         => new()
         {
+            RuleKey = Guid.NewGuid(),
             Check = check,
             Config = new ContentCheckConfig(),
             RequirementLevel = requirementLevel,

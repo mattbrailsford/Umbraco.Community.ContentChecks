@@ -5,6 +5,8 @@ import type { ContentCheckNotEvaluatedPolicy, RequirementLevel } from "../api/ty
  * One rule within a policy.
  */
 export interface ContentChecksPolicyRuleModel {
+    /** The rule's own durable identity. Empty for a rule not yet saved -- the server assigns one. */
+    key: string;
     checkAlias: string;
     config: Record<string, unknown> | null;
     requirementLevel: RequirementLevel;

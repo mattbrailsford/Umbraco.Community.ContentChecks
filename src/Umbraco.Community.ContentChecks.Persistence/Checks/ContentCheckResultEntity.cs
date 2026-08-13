@@ -48,15 +48,9 @@ internal class ContentCheckResultEntity
     public string CheckAlias { get; set; } = string.Empty;
 
     /// <summary>
-    /// How important this rule's failure was, as of the run that produced this result.
+    /// The policy rule's own key — see <see cref="Core.Checks.ContentCheckStoredResult.RuleKey"/>.
     /// </summary>
-    public Core.Checks.RequirementLevel RequirementLevel { get; set; }
-
-    /// <summary>
-    /// How a <c>NotEvaluated</c> result from this rule should be treated by a gate, as of the run
-    /// that produced this result. See <see cref="Core.Policies.ContentCheckNotEvaluatedPolicy"/>.
-    /// </summary>
-    public Core.Policies.ContentCheckNotEvaluatedPolicy NotEvaluatedPolicy { get; set; }
+    public Guid RuleKey { get; set; }
 
     /// <summary>
     /// The check's result, serialized as JSON.

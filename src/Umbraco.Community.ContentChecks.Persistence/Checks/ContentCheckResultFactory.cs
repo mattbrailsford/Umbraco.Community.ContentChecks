@@ -18,8 +18,7 @@ internal sealed class ContentCheckResultFactory : IContentCheckResultFactory
         Segment = entity.Segment,
         Path = JsonSerializer.Deserialize<List<ContentCheckLocationStep>>(entity.PathJson) ?? [],
         CheckAlias = entity.CheckAlias,
-        RequirementLevel = entity.RequirementLevel,
-        NotEvaluatedPolicy = entity.NotEvaluatedPolicy,
+        RuleKey = entity.RuleKey,
         Result = JsonSerializer.Deserialize<ContentCheckResult>(entity.ResultJson)
             ?? new ContentCheckResult { Status = ContentCheckStatus.NotEvaluated, Message = string.Empty },
         RanAtUtc = entity.RanAtUtc,
@@ -35,8 +34,7 @@ internal sealed class ContentCheckResultFactory : IContentCheckResultFactory
         Segment = result.Segment,
         PathJson = JsonSerializer.Serialize(result.Path),
         CheckAlias = result.CheckAlias,
-        RequirementLevel = result.RequirementLevel,
-        NotEvaluatedPolicy = result.NotEvaluatedPolicy,
+        RuleKey = result.RuleKey,
         ResultJson = JsonSerializer.Serialize(result.Result),
         RanAtUtc = result.RanAtUtc,
     };

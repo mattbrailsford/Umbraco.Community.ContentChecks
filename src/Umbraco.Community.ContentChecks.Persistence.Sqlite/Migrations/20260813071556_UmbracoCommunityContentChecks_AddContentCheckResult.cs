@@ -21,7 +21,6 @@ namespace Umbraco.Community.ContentChecks.Persistence.Sqlite.Migrations
                     Segment = table.Column<string>(type: "TEXT", maxLength: 100, nullable: true),
                     PathJson = table.Column<string>(type: "TEXT", nullable: false),
                     CheckAlias = table.Column<string>(type: "TEXT", maxLength: 100, nullable: false),
-                    RequirementLevel = table.Column<int>(type: "INTEGER", nullable: false),
                     ResultJson = table.Column<string>(type: "TEXT", nullable: false),
                     RanAtUtc = table.Column<DateTime>(type: "TEXT", nullable: false)
                 },

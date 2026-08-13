@@ -11,13 +11,14 @@ public class ContentCheckPublishGateServiceTests
 {
     private const string CurrentStamp = "1000";
     private const string CheckAlias = "myCheck";
+    private static readonly Guid RuleKey = Guid.NewGuid();
 
     [Test]
     public async Task EvaluateAsync_RealFailure_ResolvesGuardAndBlocks()
     {
         var content = Content();
         var resolutionService = ResolutionServiceReturning(Target(CheckAlias, RequirementLevel.Mandatory));
-        var resultService = ResultServiceReturning(StoredResult(ContentCheckStatus.Fail, RequirementLevel.Mandatory));
+        var resultService = ResultServiceReturning(StoredResult(ContentCheckStatus.Fail));
         var guardService = GuardServiceAlwaysReturning(ContentCheckResponse.Block);
 
         var service = new ContentCheckPublishGateService(resultService.Object, resolutionService.Object, guardService.Object);
@@ -32,7 +33,7 @@ public class ContentCheckPublishGateServiceTests
     {
         var content = Content();
         var resolutionService = ResolutionServiceReturning(Target(CheckAlias, RequirementLevel.Mandatory));
-        var resultService = ResultServiceReturning(StoredResult(ContentCheckStatus.Fail, RequirementLevel.Mandatory));
+        var resultService = ResultServiceReturning(StoredResult(ContentCheckStatus.Fail));
         var guardService = GuardServiceAlwaysReturning(ContentCheckResponse.Warn);
 
         var service = new ContentCheckPublishGateService(resultService.Object, resolutionService.Object, guardService.Object);
@@ -47,8 +48,7 @@ public class ContentCheckPublishGateServiceTests
         var content = Content();
         var resolutionService = ResolutionServiceReturning(
             Target(CheckAlias, RequirementLevel.Mandatory, ContentCheckNotEvaluatedPolicy.FailOpen));
-        var resultService = ResultServiceReturning(StoredResult(
-            ContentCheckStatus.NotEvaluated, RequirementLevel.Mandatory, ContentCheckNotEvaluatedPolicy.FailOpen));
+        var resultService = ResultServiceReturning(StoredResult(ContentCheckStatus.NotEvaluated));
         var guardService = GuardServiceAlwaysReturning(ContentCheckResponse.Block);
 
         var service = new ContentCheckPublishGateService(resultService.Object, resolutionService.Object, guardService.Object);
@@ -67,8 +67,7 @@ public class ContentCheckPublishGateServiceTests
         var content = Content();
         var resolutionService = ResolutionServiceReturning(
             Target(CheckAlias, RequirementLevel.Recommended, ContentCheckNotEvaluatedPolicy.FailClosed));
-        var resultService = ResultServiceReturning(StoredResult(
-            ContentCheckStatus.NotEvaluated, RequirementLevel.Recommended, ContentCheckNotEvaluatedPolicy.FailClosed));
+        var resultService = ResultServiceReturning(StoredResult(ContentCheckStatus.NotEvaluated));
 
         RequirementLevel? levelPassedToGuard = null;
         var guardService = new Mock<IGuardResolutionService>();
@@ -90,7 +89,7 @@ public class ContentCheckPublishGateServiceTests
         var content = Content();
         var resolutionService = ResolutionServiceReturning(
             Target(CheckAlias, RequirementLevel.Mandatory, ContentCheckNotEvaluatedPolicy.FailOpen));
-        var staleResult = StoredResult(ContentCheckStatus.Fail, RequirementLevel.Mandatory, contentStamp: "old-stamp");
+        var staleResult = StoredResult(ContentCheckStatus.Fail, contentStamp: "old-stamp");
         var resultService = ResultServiceReturning(staleResult);
         var guardService = GuardServiceAlwaysReturning(ContentCheckResponse.Block);
 
@@ -137,7 +136,7 @@ public class ContentCheckPublishGateServiceTests
     {
         var content = Content();
         var resolutionService = ResolutionServiceReturning(Target(CheckAlias, RequirementLevel.Mandatory));
-        var resultService = ResultServiceReturning(StoredResult(ContentCheckStatus.Pass, RequirementLevel.Mandatory));
+        var resultService = ResultServiceReturning(StoredResult(ContentCheckStatus.Pass));
         var guardService = new Mock<IGuardResolutionService>();
 
         var service = new ContentCheckPublishGateService(resultService.Object, resolutionService.Object, guardService.Object);
@@ -156,7 +155,7 @@ public class ContentCheckPublishGateServiceTests
         // rule was removed since the last run) -- only what's currently resolved should matter.
         var content = Content();
         var resolutionService = ResolutionServiceReturning();
-        var resultService = ResultServiceReturning(StoredResult(ContentCheckStatus.Fail, RequirementLevel.Mandatory));
+        var resultService = ResultServiceReturning(StoredResult(ContentCheckStatus.Fail));
         var guardService = new Mock<IGuardResolutionService>();
 
         var service = new ContentCheckPublishGateService(resultService.Object, resolutionService.Object, guardService.Object);
@@ -173,7 +172,7 @@ public class ContentCheckPublishGateServiceTests
     {
         var content = Content();
         var resolutionService = ResolutionServiceReturning(Target(CheckAlias, RequirementLevel.Recommended));
-        var resultService = ResultServiceReturning(StoredResult(ContentCheckStatus.Fail, RequirementLevel.Recommended));
+        var resultService = ResultServiceReturning(StoredResult(ContentCheckStatus.Fail));
         // No Guard would ever block a Recommended-level failure here (Warn for everyone), but the
         // miss should still be reported -- it's a fact about the content, not an enforcement outcome.
         var guardService = GuardServiceAlwaysReturning(ContentCheckResponse.Warn);
@@ -190,7 +189,7 @@ public class ContentCheckPublishGateServiceTests
     {
         var content = Content();
         var resolutionService = ResolutionServiceReturning(Target(CheckAlias, RequirementLevel.Mandatory));
-        var resultService = ResultServiceReturning(StoredResult(ContentCheckStatus.Fail, RequirementLevel.Mandatory));
+        var resultService = ResultServiceReturning(StoredResult(ContentCheckStatus.Fail));
         var guardService = GuardServiceAlwaysReturning(ContentCheckResponse.Warn);
 
         var service = new ContentCheckPublishGateService(resultService.Object, resolutionService.Object, guardService.Object);
@@ -207,18 +206,18 @@ public class ContentCheckPublishGateServiceTests
         return mock.Object;
     }
 
+    // No RequirementLevel/NotEvaluatedPolicy here -- a stored result no longer carries either,
+    // since the gate resolves both live from the current rule (via Target below) rather than from
+    // a frozen snapshot. See ContentCheckPublishGateService.IsCountedAsFailing.
     private static ContentCheckStoredResult StoredResult(
         ContentCheckStatus status,
-        RequirementLevel requirementLevel,
-        ContentCheckNotEvaluatedPolicy notEvaluatedPolicy = ContentCheckNotEvaluatedPolicy.FailOpen,
         string contentStamp = CurrentStamp) => new()
     {
         ContentKey = Guid.NewGuid(),
         ContentStamp = contentStamp,
         Path = [],
         CheckAlias = CheckAlias,
-        RequirementLevel = requirementLevel,
-        NotEvaluatedPolicy = notEvaluatedPolicy,
+        RuleKey = RuleKey,
         Result = new ContentCheckResult { Status = status, Message = "some message" },
         RanAtUtc = new DateTime(2026, 8, 13, 0, 0, 0, DateTimeKind.Utc),
     };
@@ -233,6 +232,7 @@ public class ContentCheckPublishGateServiceTests
 
         var rule = new ResolvedContentCheckRule
         {
+            RuleKey = RuleKey,
             Check = check.Object,
             Config = new ContentCheckConfig(),
             RequirementLevel = requirementLevel,

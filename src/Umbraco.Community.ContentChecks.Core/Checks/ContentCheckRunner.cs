@@ -58,6 +58,7 @@ internal sealed class ContentCheckRunner : IContentCheckRunner
         {
             entries.AddRange(meteredRules.Select(rule => new ContentCheckReportEntry
             {
+                RuleKey = rule.RuleKey,
                 CheckAlias = rule.Check.Alias,
                 RequirementLevel = rule.RequirementLevel,
                 NotEvaluatedPolicy = rule.NotEvaluatedPolicy,
@@ -124,6 +125,7 @@ internal sealed class ContentCheckRunner : IContentCheckRunner
             {
                 return new ContentCheckReportEntry
                 {
+                    RuleKey = rule.RuleKey,
                     CheckAlias = rule.Check.Alias,
                     RequirementLevel = rule.RequirementLevel,
                     NotEvaluatedPolicy = rule.NotEvaluatedPolicy,
@@ -164,6 +166,7 @@ internal sealed class ContentCheckRunner : IContentCheckRunner
 
         return new ContentCheckReportEntry
         {
+            RuleKey = rule.RuleKey,
             CheckAlias = rule.Check.Alias,
             RequirementLevel = rule.RequirementLevel,
             NotEvaluatedPolicy = rule.NotEvaluatedPolicy,

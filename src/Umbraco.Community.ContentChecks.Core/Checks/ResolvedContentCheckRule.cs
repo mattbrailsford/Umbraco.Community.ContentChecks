@@ -7,6 +7,14 @@ namespace Umbraco.Community.ContentChecks.Core.Checks;
 public sealed class ResolvedContentCheckRule
 {
     /// <summary>
+    /// The persisted rule's own durable identity — see <see cref="Policies.ContentCheckPolicyRule.Key"/>.
+    /// Distinguishes two rules that run the same <see cref="Check"/> at the same location with
+    /// different <see cref="Config"/> (e.g. two "required property" rules checking different
+    /// properties), which <see cref="Check"/>'s alias plus a location path alone can't tell apart.
+    /// </summary>
+    public required Guid RuleKey { get; init; }
+
+    /// <summary>
     /// The check to run.
     /// </summary>
     public required IContentCheck Check { get; init; }

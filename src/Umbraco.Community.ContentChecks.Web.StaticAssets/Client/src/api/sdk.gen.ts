@@ -2,7 +2,7 @@
 
 import type { Client, Options as Options2, TDataShape } from './client';
 import { client } from './client.gen';
-import type { DeleteGuardsByKeyData, DeleteGuardsByKeyErrors, DeleteGuardsByKeyResponses, DeleteFoldersByKeyData, DeleteFoldersByKeyErrors, DeleteFoldersByKeyResponses, DeletePoliciesByKeyData, DeletePoliciesByKeyErrors, DeletePoliciesByKeyResponses, GetApplicableChecksByContentKeyData, GetApplicableChecksByContentKeyErrors, GetApplicableChecksByContentKeyResponses, GetCheckResultsByContentKeyData, GetCheckResultsByContentKeyErrors, GetCheckResultsByContentKeyResponses, GetCheckTypesData, GetCheckTypesErrors, GetCheckTypesResponses, GetGuardsByKeyData, GetGuardsByKeyErrors, GetGuardsByKeyResponses, GetGuardsData, GetGuardsErrors, GetGuardsResponses, GetEvaluationByRunIdData, GetEvaluationByRunIdErrors, GetEvaluationByRunIdResponses, GetEvaluationByRunIdStreamData, GetEvaluationByRunIdStreamErrors, GetEvaluationByRunIdStreamResponses, GetFoldersByKeyData, GetFoldersByKeyErrors, GetFoldersByKeyResponses, GetPoliciesByKeyData, GetPoliciesByKeyErrors, GetPoliciesByKeyResponses, GetPoliciesData, GetPoliciesErrors, GetPoliciesResponses, GetTreeByKeyAncestorsData, GetTreeByKeyAncestorsErrors, GetTreeByKeyAncestorsResponses, GetTreeChildrenData, GetTreeChildrenErrors, GetTreeChildrenResponses, PostGuardsData, PostGuardsErrors, PostGuardsResponses, PostEvaluationData, PostEvaluationErrors, PostEvaluationResponses, PostFoldersData, PostFoldersErrors, PostFoldersResponses, PostPoliciesData, PostPoliciesErrors, PostPoliciesResponses, PutGuardsByKeyData, PutGuardsByKeyErrors, PutGuardsByKeyResponses, PutFoldersByKeyData, PutFoldersByKeyErrors, PutFoldersByKeyResponses, PutPoliciesByKeyData, PutPoliciesByKeyErrors, PutPoliciesByKeyResponses } from './types.gen';
+import type { DeleteGuardsByKeyData, DeleteGuardsByKeyErrors, DeleteGuardsByKeyResponses, DeleteFoldersByKeyData, DeleteFoldersByKeyErrors, DeleteFoldersByKeyResponses, DeletePoliciesByKeyData, DeletePoliciesByKeyErrors, DeletePoliciesByKeyResponses, GetApplicableChecksByContentKeyData, GetApplicableChecksByContentKeyErrors, GetApplicableChecksByContentKeyResponses, GetCheckResultsByContentKeyData, GetCheckResultsByContentKeyErrors, GetCheckResultsByContentKeyResponses, GetCheckTypesData, GetCheckTypesErrors, GetCheckTypesResponses, GetGuardsByKeyData, GetGuardsByKeyErrors, GetGuardsByKeyResponses, GetGuardsData, GetGuardsErrors, GetGuardsResponses, GetEvaluationByRunIdData, GetEvaluationByRunIdErrors, GetEvaluationByRunIdResponses, GetFoldersByKeyData, GetFoldersByKeyErrors, GetFoldersByKeyResponses, GetPoliciesByKeyData, GetPoliciesByKeyErrors, GetPoliciesByKeyResponses, GetPoliciesData, GetPoliciesErrors, GetPoliciesResponses, GetTreeByKeyAncestorsData, GetTreeByKeyAncestorsErrors, GetTreeByKeyAncestorsResponses, GetTreeChildrenData, GetTreeChildrenErrors, GetTreeChildrenResponses, PostGuardsData, PostGuardsErrors, PostGuardsResponses, PostEvaluationData, PostEvaluationErrors, PostEvaluationResponses, PostFoldersData, PostFoldersErrors, PostFoldersResponses, PostPoliciesData, PostPoliciesErrors, PostPoliciesResponses, PutGuardsByKeyData, PutGuardsByKeyErrors, PutGuardsByKeyResponses, PutFoldersByKeyData, PutFoldersByKeyErrors, PutFoldersByKeyResponses, PutPoliciesByKeyData, PutPoliciesByKeyErrors, PutPoliciesByKeyResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -69,13 +69,6 @@ export class EvaluationService {
         });
     }
     
-    public static getEvaluationByRunIdStream<ThrowOnError extends boolean = false>(options: Options<GetEvaluationByRunIdStreamData, ThrowOnError>) {
-        return (options.client ?? client).get<GetEvaluationByRunIdStreamResponses, GetEvaluationByRunIdStreamErrors, ThrowOnError>({
-            security: [{ scheme: 'bearer', type: 'http' }],
-            url: '/umbraco/content-checks/management/api/v1/evaluation/{runId}/stream',
-            ...options
-        });
-    }
 }
 
 export class GuardsService {

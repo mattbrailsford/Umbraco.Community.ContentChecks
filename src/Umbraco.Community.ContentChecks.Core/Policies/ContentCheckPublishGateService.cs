@@ -91,7 +91,7 @@ internal sealed class ContentCheckPublishGateService : IContentCheckPublishGateS
         var currentStamp = new ContentCheckSnapshot(content).ContentStamp;
         var freshByLocation = storedResults
             .Where(r => r.ContentStamp == currentStamp)
-            .ToLookup(r => (PathKey(r.Path), r.CheckAlias));
+            .ToLookup(r => (PathKey(r.Path), r.RuleKey));
 
         var targets = await _resolutionService.ResolveAsync(content, culture, segment, cancellationToken);
 
@@ -99,9 +99,12 @@ internal sealed class ContentCheckPublishGateService : IContentCheckPublishGateS
         foreach (var target in targets)
         {
             var pathKey = PathKey(target.Path);
+            // Keyed by RuleKey, not CheckAlias -- two rules can run the same check at the same
+            // location with different config (e.g. two "required property" rules checking
+            // different properties), and CheckAlias alone can't tell them apart.
             foreach (var rule in target.PolicyMatches.SelectMany(m => m.Rules))
             {
-                var fresh = freshByLocation[(pathKey, rule.Check.Alias)].FirstOrDefault();
+                var fresh = freshByLocation[(pathKey, rule.RuleKey)].FirstOrDefault();
 
                 if (fresh is null)
                 {
@@ -118,12 +121,12 @@ internal sealed class ContentCheckPublishGateService : IContentCheckPublishGateS
                     continue;
                 }
 
-                if (IsCountedAsFailing(fresh))
+                if (IsCountedAsFailing(fresh, rule.NotEvaluatedPolicy))
                 {
                     entries.Add(new ContentCheckPublishGateEntry
                     {
                         CheckAlias = fresh.CheckAlias,
-                        RequirementLevel = fresh.RequirementLevel,
+                        RequirementLevel = rule.RequirementLevel,
                         Message = fresh.Result.Message,
                     });
                 }
@@ -135,16 +138,17 @@ internal sealed class ContentCheckPublishGateService : IContentCheckPublishGateS
 
     /// <summary>
     /// An entry counts as failing if it's a real <see cref="ContentCheckStatus.Fail"/>, or it's
-    /// <see cref="ContentCheckStatus.NotEvaluated"/> with its rule set to
-    /// <see cref="ContentCheckNotEvaluatedPolicy.FailClosed"/> — treated at the rule's own
-    /// <see cref="ContentCheckStoredResult.RequirementLevel"/>, never a fixed level. See
+    /// <see cref="ContentCheckStatus.NotEvaluated"/> and the rule as currently configured is set to
+    /// <see cref="ContentCheckNotEvaluatedPolicy.FailClosed"/>. The live rule's policy is used here
+    /// rather than the snapshot stored on the result, so a policy edit made after the check last ran
+    /// takes effect immediately instead of only after the content is re-checked. See
     /// docs/guard-spec.md's "NotEvaluatedPolicy decides whether a missed check counts as failing
     /// at all."
     /// </summary>
-    private static bool IsCountedAsFailing(ContentCheckStoredResult result) =>
+    private static bool IsCountedAsFailing(ContentCheckStoredResult result, ContentCheckNotEvaluatedPolicy currentNotEvaluatedPolicy) =>
         result.Result.Status == ContentCheckStatus.Fail
         || (result.Result.Status == ContentCheckStatus.NotEvaluated
-            && result.NotEvaluatedPolicy == ContentCheckNotEvaluatedPolicy.FailClosed);
+            && currentNotEvaluatedPolicy == ContentCheckNotEvaluatedPolicy.FailClosed);
 
     /// <summary>
     /// A stable, order-sensitive key for a location path — <see cref="ContentCheckLocationStep"/>

@@ -42,18 +42,12 @@ namespace Umbraco.Community.ContentChecks.Persistence.Sqlite.Migrations
                         .HasMaxLength(10)
                         .HasColumnType("TEXT");
 
-                    b.Property<int>("NotEvaluatedPolicy")
-                        .HasColumnType("INTEGER");
-
                     b.Property<string>("PathJson")
                         .IsRequired()
                         .HasColumnType("TEXT");
 
                     b.Property<DateTime>("RanAtUtc")
                         .HasColumnType("TEXT");
-
-                    b.Property<int>("RequirementLevel")
-                        .HasColumnType("INTEGER");
 
                     b.Property<string>("ResultJson")
                         .IsRequired()

@@ -1,15 +1,26 @@
 import { css, customElement, html, state } from "@umbraco-cms/backoffice/external/lit";
+import { HubConnectionBuilder, type HubConnection } from "@umbraco-cms/backoffice/external/signalr";
 import { UmbLitElement } from "@umbraco-cms/backoffice/lit-element";
 import { UmbTextStyles } from "@umbraco-cms/backoffice/style";
+import { UMB_AUTH_CONTEXT } from "@umbraco-cms/backoffice/auth";
 import { UMB_ENTITY_CONTEXT } from "@umbraco-cms/backoffice/entity";
+import { UMB_SERVER_CONTEXT } from "@umbraco-cms/backoffice/server";
 import { tryExecute } from "@umbraco-cms/backoffice/resources";
 import { ApplicableChecksService, CheckResultsService, EvaluationService } from "../api/sdk.gen.js";
 import type {
     ApplicableCheckTargetResponseModel,
+    ApplicableRuleResponseModel,
     ContentCheckAggregateReport,
     ContentCheckReportEntry,
     EvaluationItemResponseModel,
+    EvaluationRunResponseModel,
 } from "../api/types.gen.js";
+
+/**
+ * Must match `Constants.ManagementApi.RunHubPath` in `Umbraco.Community.ContentChecks.Web` --
+ * where `ContentCheckRunHub` is mapped to.
+ */
+const RUN_HUB_PATH = "/umbraco/content-checks/run-hub";
 
 /**
  * One panel, not two: renders resolution's own per-item Applicable Checks as pending rows, then
@@ -34,11 +45,11 @@ export class CcDocumentChecksWorkspaceViewElement extends UmbLitElement {
     @state()
     private _runError?: string;
 
-    /** Keyed by `${JSON.stringify(path)}::${checkAlias}` so a result can be matched back to its pending row. */
+    /** Keyed by `${JSON.stringify(path)}::${ruleKey}` so a result can be matched back to its pending row. */
     @state()
     private _resultsByKey: Map<string, ContentCheckReportEntry> = new Map();
 
-    #abortController?: AbortController;
+    #connection?: HubConnection;
 
     constructor() {
         super();
@@ -58,7 +69,7 @@ export class CcDocumentChecksWorkspaceViewElement extends UmbLitElement {
 
     override disconnectedCallback() {
         super.disconnectedCallback();
-        this.#abortController?.abort();
+        this.#connection?.stop();
     }
 
     async #loadApplicableChecks() {
@@ -79,8 +90,13 @@ export class CcDocumentChecksWorkspaceViewElement extends UmbLitElement {
         this._isLoading = false;
     }
 
-    #resultKey(path: unknown, checkAlias: string) {
-        return `${JSON.stringify(path)}::${checkAlias}`;
+    /**
+     * Keyed by `ruleKey`, not `checkAlias` -- two rules can run the same check at the same
+     * location with different config (e.g. two "required property" rules checking different
+     * properties), and `checkAlias` alone can't tell them apart.
+     */
+    #resultKey(path: unknown, ruleKey: string) {
+        return `${JSON.stringify(path)}::${ruleKey}`;
     }
 
     async #onRun() {
@@ -105,63 +121,64 @@ export class CcDocumentChecksWorkspaceViewElement extends UmbLitElement {
     }
 
     /**
-     * Watches a run over SSE via the generated (already-authenticated) fetch client -- not the
-     * native EventSource API, which can't carry the Authorization header the backoffice API
-     * requires.
+     * Watches a run over the backoffice's own SignalR hub, joining the run's group so the server
+     * pushes progress as it happens -- no polling. `JoinRun` also replays whatever's already
+     * known about the run as soon as it's joined, so a client that connects after some (or all)
+     * items have already finished -- a fast run, or a slow page load -- still sees their state,
+     * not just what happens from the moment it joins.
      */
     async #watchRun(runId: string) {
-        this.#abortController = new AbortController();
+        const [authContext, serverContext] = await Promise.all([
+            this.getContext(UMB_AUTH_CONTEXT),
+            this.getContext(UMB_SERVER_CONTEXT),
+        ]);
 
-        const { response, error } = await tryExecute(
-            this,
-            EvaluationService.getEvaluationByRunIdStream({
-                path: { runId },
-                signal: this.#abortController.signal,
-                parseAs: "stream",
-            }),
-        );
-
-        if (error || !response?.body) {
+        if (!authContext || !serverContext) {
             this._runError = "Could not watch the run.";
             this._isRunning = false;
             return;
         }
 
-        const reader = response.body.pipeThrough(new TextDecoderStream()).getReader();
-        let buffer = "";
+        this.#connection = new HubConnectionBuilder()
+            .withUrl(`${serverContext.getServerUrl()}${RUN_HUB_PATH}`, {
+                accessTokenFactory: () => authContext.getLatestToken(),
+            })
+            .withAutomaticReconnect()
+            .build();
+
+        this.#connection.on("progress", (item: EvaluationItemResponseModel) => this.#applyItemResult(item));
+        this.#connection.on("complete", (run: EvaluationRunResponseModel) => {
+            run.items.forEach((item) => this.#applyItemResult(item));
+            this.#stopWatching();
+        });
 
         try {
-            while (true) {
-                const { value, done } = await reader.read();
-                if (done) break;
-
-                buffer += value;
-                const frames = buffer.split("\n\n");
-                buffer = frames.pop() ?? "";
-
-                for (const frame of frames) {
-                    this.#handleSseFrame(frame);
-                }
-            }
-        } finally {
-            this._isRunning = false;
+            await this.#connection.start();
+            await this.#connection.invoke("JoinRun", runId);
+        } catch {
+            // The hub connection itself failed (e.g. a proxy blocking the WebSocket upgrade) --
+            // fall back to a single read of whatever's been persisted so far rather than leaving
+            // every row stuck on "Not run yet".
+            this._runError = "Could not watch the run.";
+            await this.#refreshResults();
+            this.#stopWatching();
         }
     }
 
-    #handleSseFrame(frame: string) {
-        const eventLine = frame.split("\n").find((line) => line.startsWith("event:"));
-        const dataLine = frame.split("\n").find((line) => line.startsWith("data:"));
-        if (!dataLine) return;
+    #stopWatching() {
+        this.#connection?.stop();
+        this.#connection = undefined;
+        this._isRunning = false;
+    }
 
-        const eventName = eventLine?.slice("event:".length).trim();
-        const json = dataLine.slice("data:".length).trim();
-
-        if (eventName === "progress") {
-            const item = JSON.parse(json) as EvaluationItemResponseModel;
-            this.#applyItemResult(item);
-        } else if (eventName === "complete") {
-            const run = JSON.parse(json) as { items: EvaluationItemResponseModel[] };
-            run.items.forEach((item) => this.#applyItemResult(item));
+    async #refreshResults() {
+        if (!this._contentKey) return;
+        const { data: report } = await tryExecute(
+            this,
+            CheckResultsService.getCheckResultsByContentKey({ path: { contentKey: this._contentKey } }),
+        );
+        if (report) {
+            this.#applyReport(report);
         }
     }
 
@@ -178,13 +195,13 @@ export class CcDocumentChecksWorkspaceViewElement extends UmbLitElement {
     #applyReport(report: ContentCheckAggregateReport) {
         const next = new Map(this._resultsByKey);
         for (const entry of report.entries) {
-            next.set(this.#resultKey(entry.path, entry.entry.checkAlias), entry.entry);
+            next.set(this.#resultKey(entry.path, entry.entry.ruleKey), entry.entry);
         }
         this._resultsByKey = next;
     }
 
-    #renderResult(path: unknown, checkAlias: string) {
-        const result = this._resultsByKey.get(this.#resultKey(path, checkAlias));
+    #renderResult(path: unknown, ruleKey: string) {
+        const result = this._resultsByKey.get(this.#resultKey(path, ruleKey));
         if (!result) {
             return this._isRunning
                 ? html`<uui-loader-bar></uui-loader-bar>`
@@ -206,12 +223,12 @@ export class CcDocumentChecksWorkspaceViewElement extends UmbLitElement {
         `;
     }
 
-    #renderRule(target: ApplicableCheckTargetResponseModel, checkAlias: string, checkName: string, requirementLevel: string) {
+    #renderRule(target: ApplicableCheckTargetResponseModel, rule: ApplicableRuleResponseModel) {
         return html`
             <div class="rule-row">
-                <span class="check-name">${checkName}</span>
-                <uui-tag look="outline">${requirementLevel}</uui-tag>
-                <div class="result">${this.#renderResult(target.path, checkAlias)}</div>
+                <span class="check-name">${rule.checkName}</span>
+                <uui-tag look="outline">${rule.requirementLevel}</uui-tag>
+                <div class="result">${this.#renderResult(target.path, rule.ruleKey)}</div>
             </div>
         `;
     }
@@ -231,7 +248,7 @@ export class CcDocumentChecksWorkspaceViewElement extends UmbLitElement {
                                 <strong>${match.policyName}</strong>
                                 <uui-tag look="outline">${match.provenance}</uui-tag>
                             </div>
-                            ${match.rules.map((rule) => this.#renderRule(target, rule.checkAlias, rule.checkName, rule.requirementLevel))}
+                            ${match.rules.map((rule) => this.#renderRule(target, rule))}
                         </div>
                     `,
                 )}

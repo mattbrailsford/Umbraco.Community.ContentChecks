@@ -38,6 +38,7 @@ public class PolicyMapDefinition : IMapDefinition
     // Umbraco.Code.MapAll
     private static void MapRuleToResponse(ContentCheckPolicyRule source, PolicyRuleModel target, MapperContext context)
     {
+        target.Key = source.Key;
         target.CheckAlias = source.CheckAlias;
         target.Config = source.Config.Config;
         target.RequirementLevel = source.RequirementLevel;
@@ -58,6 +59,10 @@ public class PolicyMapDefinition : IMapDefinition
     // Umbraco.Code.MapAll
     private static void MapRuleFromRequest(PolicyRuleModel source, ContentCheckPolicyRule target, MapperContext context)
     {
+        // An empty key means the client is submitting a brand new rule -- generate its durable
+        // identity here rather than trusting a client-supplied one, but preserve whatever key an
+        // existing rule already carries so it stays matched to its past results across edits.
+        target.Key = source.Key == Guid.Empty ? Guid.NewGuid() : source.Key;
         target.CheckAlias = source.CheckAlias;
         target.Config = new() { Config = source.Config };
         target.RequirementLevel = source.RequirementLevel;

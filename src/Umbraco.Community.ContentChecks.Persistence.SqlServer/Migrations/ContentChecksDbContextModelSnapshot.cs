@@ -44,9 +44,6 @@ namespace Umbraco.Community.ContentChecks.Persistence.SqlServer.Migrations
                         .HasMaxLength(10)
                         .HasColumnType("nvarchar(10)");
 
-                    b.Property<int>("NotEvaluatedPolicy")
-                        .HasColumnType("int");
-
                     b.Property<string>("PathJson")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -54,12 +51,12 @@ namespace Umbraco.Community.ContentChecks.Persistence.SqlServer.Migrations
                     b.Property<DateTime>("RanAtUtc")
                         .HasColumnType("datetime2");
 
-                    b.Property<int>("RequirementLevel")
-                        .HasColumnType("int");
-
                     b.Property<string>("ResultJson")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid>("RuleKey")
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("Segment")
                         .HasMaxLength(100)

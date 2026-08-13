@@ -12,6 +12,14 @@ namespace Umbraco.Community.ContentChecks.Web.Api.Management.ApplicableChecks.Mo
 public class ApplicableRuleResponseModel
 {
     /// <summary>
+    /// The rule's own durable identity — not the config itself, just enough for the client to
+    /// tell two rules apart that both run the same check at the same location with different
+    /// config (e.g. two "required property" rules checking different properties), and to match a
+    /// result back to the exact rule that produced it once a run completes.
+    /// </summary>
+    public Guid RuleKey { get; set; }
+
+    /// <summary>
     /// The alias of the check this rule runs.
     /// </summary>
     [Required]

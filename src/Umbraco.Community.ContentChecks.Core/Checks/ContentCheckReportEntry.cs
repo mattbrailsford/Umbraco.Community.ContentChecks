@@ -13,6 +13,13 @@ public sealed class ContentCheckReportEntry
     public required string CheckAlias { get; init; }
 
     /// <summary>
+    /// <see cref="ResolvedContentCheckRule.RuleKey"/> for the rule that produced this entry —
+    /// distinguishes two rules that both ran <see cref="CheckAlias"/> at the same location with
+    /// different config (e.g. two "required property" rules checking different properties).
+    /// </summary>
+    public required Guid RuleKey { get; init; }
+
+    /// <summary>
     /// How important this rule's failure is.
     /// </summary>
     public required RequirementLevel RequirementLevel { get; init; }

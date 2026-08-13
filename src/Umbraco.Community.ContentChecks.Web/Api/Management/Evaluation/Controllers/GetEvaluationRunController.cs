@@ -9,8 +9,9 @@ namespace Umbraco.Community.ContentChecks.Web.Api.Management.Evaluation.Controll
 
 /// <summary>
 /// Controller to poll a run's current state — a plain "state right now" read of the tracker,
-/// free once it exists, and a fallback if SSE is ever blocked (some proxies still mishandle
-/// long-lived connections).
+/// free once it exists, and a fallback for a client that can't get a
+/// <see cref="Runs.ContentCheckRunHub"/> connection to succeed at all (some proxies still block
+/// WebSocket upgrades).
 /// </summary>
 [ApiVersion("1.0")]
 public class GetEvaluationRunController : EvaluationControllerBase

@@ -46,15 +46,12 @@ public sealed class ContentCheckStoredResult
     public required string CheckAlias { get; init; }
 
     /// <summary>
-    /// How important this rule's failure is, as of the run that produced this result.
+    /// <see cref="Policies.ContentCheckPolicyRule.Key"/> of the rule that produced this result —
+    /// distinguishes two rules that both ran <see cref="CheckAlias"/> at the same
+    /// <see cref="Path"/> with different config (e.g. two "required property" rules checking
+    /// different properties), which <see cref="CheckAlias"/> plus <see cref="Path"/> alone can't.
     /// </summary>
-    public required RequirementLevel RequirementLevel { get; init; }
-
-    /// <summary>
-    /// How a <see cref="ContentCheckStatus.NotEvaluated"/> result from this rule should be treated
-    /// by a gate, as of the run that produced this result — see docs/guard-spec.md.
-    /// </summary>
-    public Policies.ContentCheckNotEvaluatedPolicy NotEvaluatedPolicy { get; init; } = Policies.ContentCheckNotEvaluatedPolicy.FailOpen;
+    public required Guid RuleKey { get; init; }
 
     /// <summary>
     /// The result the check produced.

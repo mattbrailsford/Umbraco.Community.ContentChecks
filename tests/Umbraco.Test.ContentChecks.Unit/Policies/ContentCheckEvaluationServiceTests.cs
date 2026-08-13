@@ -40,7 +40,7 @@ public class ContentCheckEvaluationServiceTests
                 {
                     Policy = rootPolicy,
                     Provenance = ContentCheckEffectiveCheckProvenance.Direct,
-                    Rules = [new ResolvedContentCheckRule { Check = passingCheck, Config = new ContentCheckConfig(), RequirementLevel = RequirementLevel.Recommended }],
+                    Rules = [new ResolvedContentCheckRule { RuleKey = Guid.NewGuid(), Check = passingCheck, Config = new ContentCheckConfig(), RequirementLevel = RequirementLevel.Recommended }],
                 },
             ],
             Path = [],
@@ -57,7 +57,7 @@ public class ContentCheckEvaluationServiceTests
                 {
                     Policy = testimonialPolicy,
                     Provenance = ContentCheckEffectiveCheckProvenance.Cascading,
-                    Rules = [new ResolvedContentCheckRule { Check = failingCheck, Config = new ContentCheckConfig(), RequirementLevel = RequirementLevel.Mandatory }],
+                    Rules = [new ResolvedContentCheckRule { RuleKey = Guid.NewGuid(), Check = failingCheck, Config = new ContentCheckConfig(), RequirementLevel = RequirementLevel.Mandatory }],
                 },
             ],
             Path = [testimonialStep],

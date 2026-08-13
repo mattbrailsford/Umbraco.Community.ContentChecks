@@ -133,6 +133,137 @@ public class PublishGateEndToEndTests : UmbracoIntegrationTest
         Assert.That(thirdAttempt.Success, Is.False, "A stale report (content edited since it ran) must not carry over to a new publish attempt.");
     }
 
+    /// <summary>
+    /// Diagnostic for a real bug report: an editor sees a genuinely failing check (default
+    /// FailOpen, real Fail status), but "Save and publish" still goes through. Reproduces the
+    /// backoffice's actual sequence -- a Save call immediately before Publish, even with nothing
+    /// left to change -- to check whether that alone invalidates the just-run report's
+    /// ContentStamp (which keys off UpdateDate) before the gate ever sees it.
+    /// </summary>
+    [Test]
+    public async Task DIAGNOSTIC_NoOpSaveImmediatelyBeforePublish_DoesItInvalidateTheStamp()
+    {
+        var pageType = ContentTypeBuilder.CreateSimpleContentType("page", "Page");
+        await ContentTypeService.CreateAsync(pageType, Constants.Security.SuperUserKey);
+
+        await PolicyService.SavePolicyAsync(new ContentCheckPolicy
+        {
+            Alias = "required-title",
+            Name = "Required title",
+            ContentTypeKey = pageType.Key,
+            Rules =
+            [
+                new ContentCheckPolicyRule
+                {
+                    CheckAlias = "required-property",
+                    Config = new ContentCheckConfig
+                    {
+                        Config = JsonSerializer.SerializeToElement(new { propertyAlias = PropertyAlias }),
+                    },
+                    RequirementLevel = RequirementLevel.Mandatory,
+                    // Default -- most rules will be left at this. If a no-op save invalidates the
+                    // stamp, a FailOpen rule's real Fail becomes invisible to the gate entirely.
+                    NotEvaluatedPolicy = ContentCheckNotEvaluatedPolicy.FailOpen,
+                },
+            ],
+        });
+
+        await GuardService.SaveAsync(new Guard
+        {
+            Name = "Site-wide",
+            Rules = [new GuardRule { BlockAt = RequirementLevel.Mandatory }],
+        });
+
+        // Title deliberately left empty -- the check will genuinely Fail.
+        var content = ContentBuilder.CreateSimpleContent(pageType, "Home");
+        content.SetValue(PropertyAlias, string.Empty);
+        ContentService.Save(content);
+
+        var beforeRunChecks = ContentService.GetById(content.Key)!;
+        TestContext.Out.WriteLine($"UpdateDate before RunChecksAsync : {beforeRunChecks.UpdateDate:O}");
+
+        await RunChecksAsync(beforeRunChecks);
+
+        var afterRunChecks = ContentService.GetById(content.Key)!;
+        TestContext.Out.WriteLine($"UpdateDate after RunChecksAsync  : {afterRunChecks.UpdateDate:O}");
+
+        // The backoffice's "Save and publish" issues a Save call right before Publish, even when
+        // the editor made no further edits since the last save.
+        ContentService.Save(afterRunChecks);
+
+        var afterNoOpSave = ContentService.GetById(content.Key)!;
+        TestContext.Out.WriteLine($"UpdateDate after no-op Save      : {afterNoOpSave:O}");
+        TestContext.Out.WriteLine($"Stamp moved by the no-op save?   : {afterRunChecks.UpdateDate != afterNoOpSave.UpdateDate}");
+
+        var publishResult = await PublishAsync(content.Key);
+        TestContext.Out.WriteLine($"Publish succeeded (should be False -- the check genuinely fails) : {publishResult.Success}");
+
+        Assert.That(
+            publishResult.Success,
+            Is.False,
+            "A genuinely failing Mandatory check must still block, even after a no-op save right before publish.");
+    }
+
+    /// <summary>
+    /// Second diagnostic: what if the content was edited (a real value change, not a no-op save)
+    /// after the last check run, and the rule is left at the default FailOpen? A real, still-true
+    /// Fail becomes invisible once the report goes stale, and FailOpen -- the default -- doesn't
+    /// require a fresh report to let a publish through. If this is what the editor hit, it's
+    /// working exactly as designed, just surprising if they don't know FailOpen is the default.
+    /// </summary>
+    [Test]
+    public async Task DIAGNOSTIC_EditAfterRunningChecks_WithDefaultFailOpen_LetsAStillFailingCheckThrough()
+    {
+        var pageType = ContentTypeBuilder.CreateSimpleContentType("page", "Page");
+        await ContentTypeService.CreateAsync(pageType, Constants.Security.SuperUserKey);
+
+        await PolicyService.SavePolicyAsync(new ContentCheckPolicy
+        {
+            Alias = "required-title",
+            Name = "Required title",
+            ContentTypeKey = pageType.Key,
+            Rules =
+            [
+                new ContentCheckPolicyRule
+                {
+                    CheckAlias = "required-property",
+                    Config = new ContentCheckConfig
+                    {
+                        Config = JsonSerializer.SerializeToElement(new { propertyAlias = PropertyAlias }),
+                    },
+                    RequirementLevel = RequirementLevel.Mandatory,
+                    NotEvaluatedPolicy = ContentCheckNotEvaluatedPolicy.FailOpen, // the default
+                },
+            ],
+        });
+
+        await GuardService.SaveAsync(new Guard
+        {
+            Name = "Site-wide",
+            Rules = [new GuardRule { BlockAt = RequirementLevel.Mandatory }],
+        });
+
+        var content = ContentBuilder.CreateSimpleContent(pageType, "Home");
+        content.SetValue(PropertyAlias, string.Empty); // check will Fail
+        ContentService.Save(content);
+
+        await RunChecksAsync(content);
+
+        // A real edit -- to an unrelated property, the failing one is still empty -- after the
+        // report was generated. The stored Fail result is now stale.
+        var reloaded = ContentService.GetById(content.Key)!;
+        reloaded.Name = "Home (edited)";
+        ContentService.Save(reloaded);
+
+        var publishResult = await PublishAsync(reloaded.Key);
+        TestContext.Out.WriteLine($"Publish succeeded (the check is still genuinely failing) : {publishResult.Success}");
+
+        Assert.That(
+            publishResult.Success,
+            Is.True,
+            "DIAGNOSTIC: with the default FailOpen, a stale report doesn't block, even though the underlying check would still fail if re-run.");
+    }
+
     private async Task<Attempt<ContentPublishingResult, ContentPublishingOperationStatus>> PublishAsync(Guid contentKey)
         => await ContentPublishingService.PublishAsync(
             contentKey,
@@ -155,8 +286,7 @@ public class PublishGateEndToEndTests : UmbracoIntegrationTest
             ContentStamp = report.ContentStamp,
             Path = entry.Path,
             CheckAlias = entry.Entry.CheckAlias,
-            RequirementLevel = entry.Entry.RequirementLevel,
-            NotEvaluatedPolicy = entry.Entry.NotEvaluatedPolicy,
+            RuleKey = entry.Entry.RuleKey,
             Result = entry.Entry.Result,
             RanAtUtc = ranAtUtc,
         }).ToList();

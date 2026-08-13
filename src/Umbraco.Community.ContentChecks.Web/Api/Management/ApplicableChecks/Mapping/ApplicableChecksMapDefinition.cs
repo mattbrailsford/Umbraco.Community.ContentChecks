@@ -43,6 +43,7 @@ public class ApplicableChecksMapDefinition : IMapDefinition
     // Umbraco.Code.MapAll
     private static void MapRuleToResponse(ResolvedContentCheckRule source, ApplicableRuleResponseModel target, MapperContext context)
     {
+        target.RuleKey = source.RuleKey;
         target.CheckAlias = source.Check.Alias;
         target.CheckName = source.Check.Name;
         target.RequirementLevel = source.RequirementLevel;

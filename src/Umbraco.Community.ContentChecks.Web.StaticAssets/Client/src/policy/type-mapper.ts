@@ -13,6 +13,7 @@ export const ContentChecksPolicyTypeMapper = {
             startNodeKey: response.startNodeKey ?? null,
             parentFolderKey: response.parentFolderKey ?? null,
             rules: (response.rules ?? []).map((rule) => ({
+                key: rule.key,
                 checkAlias: rule.checkAlias,
                 config: (rule.config as Record<string, unknown> | null) ?? null,
                 requirementLevel: rule.requirementLevel,
@@ -30,6 +31,7 @@ export const ContentChecksPolicyTypeMapper = {
             startNodeKey: model.startNodeKey,
             parentFolderKey: model.parentFolderKey,
             rules: model.rules.map((rule) => ({
+                key: rule.key,
                 checkAlias: rule.checkAlias,
                 config: rule.config,
                 requirementLevel: rule.requirementLevel,

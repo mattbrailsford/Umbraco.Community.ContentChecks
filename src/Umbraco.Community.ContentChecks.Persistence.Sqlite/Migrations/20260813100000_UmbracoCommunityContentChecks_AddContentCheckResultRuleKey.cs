@@ -1,28 +1,29 @@
-﻿using Microsoft.EntityFrameworkCore.Migrations;
+﻿using System;
+using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
-namespace Umbraco.Community.ContentChecks.Persistence.SqlServer.Migrations
+namespace Umbraco.Community.ContentChecks.Persistence.Sqlite.Migrations
 {
     /// <inheritdoc />
-    public partial class UmbracoCommunityContentChecks_AddContentCheckResultNotEvaluatedPolicy : Migration
+    public partial class UmbracoCommunityContentChecks_AddContentCheckResultRuleKey : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AddColumn<int>(
-                name: "NotEvaluatedPolicy",
+            migrationBuilder.AddColumn<Guid>(
+                name: "RuleKey",
                 table: "umbracoCommunityContentChecksResult",
-                type: "int",
+                type: "TEXT",
                 nullable: false,
-                defaultValue: 0);
+                defaultValue: Guid.Empty);
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropColumn(
-                name: "NotEvaluatedPolicy",
+                name: "RuleKey",
                 table: "umbracoCommunityContentChecksResult");
         }
     }

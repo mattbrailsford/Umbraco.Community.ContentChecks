@@ -12,6 +12,11 @@
     <PackageTags>umbraco content-checks content quality validation umbraco-marketplace</PackageTags>
   </PropertyGroup>
 
+  <!-- Needed for Microsoft.AspNetCore.SignalR's MapHub, used by the live check-run hub. -->
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="Umbraco.Cms.Api.Management" />
   </ItemGroup>

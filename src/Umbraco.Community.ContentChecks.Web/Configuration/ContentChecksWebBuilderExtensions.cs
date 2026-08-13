@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Umbraco.Cms.Api.Common.DependencyInjection;
@@ -9,6 +10,7 @@ using Umbraco.Cms.Api.Management.OpenApi;
 using Umbraco.Cms.Core.DependencyInjection;
 using Umbraco.Cms.Core.Mapping;
 using Umbraco.Cms.Core.Notifications;
+using Umbraco.Cms.Web.Common.ApplicationBuilder;
 using Umbraco.Community.ContentChecks.Core;
 using Umbraco.Community.ContentChecks.Web;
 using Umbraco.Community.ContentChecks.Web.Api.Common.Configuration;
@@ -70,11 +72,31 @@ public static class ContentChecksWebBuilderExtensions
         });
 
         // The live-run mechanism: a singleton tracker holding run state, a singleton queue
-        // decoupling "a run was started" from "the worker has gotten to it", and the worker
-        // itself as a hosted background service.
+        // decoupling "a run was started" from "the worker has gotten to it", the worker itself
+        // as a hosted background service, and a SignalR hub the worker pushes progress through
+        // instead of a client having to poll for it.
         builder.Services.AddSingleton<IContentCheckRunTracker, ContentCheckRunTracker>();
         builder.Services.AddSingleton<IContentCheckRunQueue, ContentCheckRunQueue>();
+        builder.Services.AddSingleton<IContentCheckRunNotifier, ContentCheckRunNotifier>();
         builder.Services.AddHostedService<ContentCheckRunBackgroundService>();
+
+        // SignalR's hub protocol has its own JSON serializer, entirely separate from the named
+        // MVC JsonOptions above -- without this, an enum (RequirementLevel, ContentCheckStatus,
+        // etc.) on a pushed message serializes as its raw int, while the same type serializes as
+        // its string name when read back over REST, since only the MVC options carry the
+        // JsonStringEnumConverter.
+        builder.Services.AddSignalR().AddJsonProtocol(options =>
+        {
+            options.PayloadSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
+            options.PayloadSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+        });
+        builder.Services.Configure<UmbracoPipelineOptions>(options =>
+        {
+            options.AddFilter(new UmbracoPipelineFilter(nameof(ContentCheckRunHub))
+            {
+                PostMapEndpoints = endpoints => endpoints.MapHub<ContentCheckRunHub>(Constants.ManagementApi.RunHubPath),
+            });
+        });
 
         // The publish gate: cancels a publish when the content's last stored report blocks the
         // current user. Needs IHttpContextAccessor to tell an interactive publish (blockable) apart

@@ -47,6 +47,9 @@ export class ContentChecksRuleConfigEditorModalElement extends UmbModalBaseEleme
 
     #onSubmit() {
         const rule: ContentChecksPolicyRuleModel = {
+            // Preserve an existing rule's identity across an edit -- crypto.randomUUID() only for
+            // a genuinely new rule, so results already stored against it stay matched.
+            key: this.data?.existingRule?.key ?? crypto.randomUUID(),
             checkAlias: this.data!.checkType.alias,
             requirementLevel: this._requirementLevel,
             notEvaluatedPolicy: this._notEvaluatedPolicy,
