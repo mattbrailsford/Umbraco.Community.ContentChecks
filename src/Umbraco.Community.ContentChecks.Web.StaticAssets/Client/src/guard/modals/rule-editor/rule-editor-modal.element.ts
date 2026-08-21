@@ -1,9 +1,9 @@
 import { css, customElement, html, state, when } from "@umbraco-cms/backoffice/external/lit";
-import { UmbModalBaseElement } from "@umbraco-cms/backoffice/modal";
-import "@umbraco-cms/backoffice/user";
+import { UMB_ITEM_PICKER_MODAL, UMB_MODAL_MANAGER_CONTEXT, UmbModalBaseElement } from "@umbraco-cms/backoffice/modal";
+import { UMB_NOTIFICATION_CONTEXT } from "@umbraco-cms/backoffice/notification";
 import "@umbraco-cms/backoffice/user-group";
-import type { UmbUserInputElement } from "@umbraco-cms/backoffice/user";
 import type { UmbUserGroupInputElement } from "@umbraco-cms/backoffice/user-group";
+import { UmbUserCollectionRepository, UmbUserItemRepository } from "@umbraco-cms/backoffice/user";
 import type { RequirementLevel } from "../../../api/types.gen.js";
 import type { ContentChecksGuardRuleModel } from "../../types.js";
 import type { ContentChecksRuleEditorModalData, ContentChecksRuleEditorModalValue } from "./rule-editor-modal.token.js";
@@ -31,12 +31,15 @@ export class ContentChecksRuleEditorModalElement extends UmbModalBaseElement<
     private _userKey: string | null = null;
 
     @state()
+    private _userLabel: string | null = null;
+
+    @state()
     private _roleKey: string | null = null;
 
     @state()
     private _blockAt: BlockAtOption = "none";
 
-    override connectedCallback() {
+    override async connectedCallback() {
         super.connectedCallback();
 
         const existingRule = this.data?.existingRule;
@@ -45,18 +48,64 @@ export class ContentChecksRuleEditorModalElement extends UmbModalBaseElement<
             this._roleKey = existingRule.roleKey;
             this._blockAt = existingRule.blockAt ?? "none";
             this._targetKind = existingRule.userKey ? "user" : existingRule.roleKey ? "role" : "everyoneElse";
+
+            if (existingRule.userKey) {
+                const { data } = await new UmbUserItemRepository(this).requestItems([existingRule.userKey]);
+                this._userLabel = data?.[0]?.name ?? null;
+            }
         }
     }
 
     #onTargetKindChange(e: Event) {
         this._targetKind = (e.target as HTMLSelectElement).value as TargetKind;
         this._userKey = null;
+        this._userLabel = null;
         this._roleKey = null;
     }
 
-    #onUserChange(e: Event) {
-        const selection = (e.target as UmbUserInputElement).selection;
-        this._userKey = selection[0] ?? null;
+    /**
+     * Umbraco's own `<umb-user-input>` opens its picker via a route registered against the
+     * nearest routable ancestor context -- which, for whatever reason specific to this modal, never
+     * resolves, leaving its "Add" button a dead link. `<umb-user-group-input>` (used just below for
+     * the role case) happens to work fine, so this is scoped to the user picker specifically:
+     * fetch the (small, single-page) user list ourselves and hand it to the generic, non-routed
+     * item-picker modal instead.
+     */
+    async #onPickUser() {
+        const modalManager = await this.getContext(UMB_MODAL_MANAGER_CONTEXT);
+        if (!modalManager) return;
+
+        const { data, error } = await new UmbUserCollectionRepository(this).requestCollection({ skip: 0, take: 100 });
+        if (error) {
+            // Content Checks access doesn't imply Users access -- an admin can grant one without
+            // the other, and listing users requires the latter.
+            const notificationContext = await this.getContext(UMB_NOTIFICATION_CONTEXT);
+            notificationContext?.peek("danger", {
+                data: {
+                    headline: "Can't load users",
+                    message: "You may not have permission to view users -- ask an administrator for Users section access.",
+                },
+            });
+            return;
+        }
+
+        const items = (data?.items ?? []).map((user) => ({ label: user.name, value: user.unique, icon: "icon-user" }));
+
+        const modal = modalManager.open(this, UMB_ITEM_PICKER_MODAL, { data: { headline: "Select a user", items } });
+
+        try {
+            const result = await modal.onSubmit();
+            if (!result) return;
+            this._userKey = result.value;
+            this._userLabel = result.label;
+        } catch {
+            // Modal was cancelled -- do nothing.
+        }
+    }
+
+    #onRemoveUser() {
+        this._userKey = null;
+        this._userLabel = null;
     }
 
     #onRoleChange(e: Event) {
@@ -116,13 +165,28 @@ export class ContentChecksRuleEditorModalElement extends UmbModalBaseElement<
                         ${when(
                             this._targetKind === "user",
                             () => html`
-                                <umb-property-layout label="User">
+                                <umb-property-layout label="User" description="The specific user this rule applies to.">
                                     <div slot="editor">
-                                        <umb-user-input
-                                            .selection=${this._userKey ? [this._userKey] : []}
-                                            max="1"
-                                            @change=${this.#onUserChange}
-                                        ></umb-user-input>
+                                        ${this._userKey
+                                            ? html`
+                                                  <uui-ref-node name=${this._userLabel ?? this._userKey} readonly>
+                                                      <umb-icon slot="icon" name="icon-user"></umb-icon>
+                                                      <uui-action-bar slot="actions">
+                                                          <uui-button label="Change" @click=${this.#onPickUser}>
+                                                              <uui-icon name="icon-edit"></uui-icon>
+                                                          </uui-button>
+                                                          <uui-button label="Remove" @click=${this.#onRemoveUser}>
+                                                              <uui-icon name="icon-trash"></uui-icon>
+                                                          </uui-button>
+                                                      </uui-action-bar>
+                                                  </uui-ref-node>
+                                              `
+                                            : html`<uui-button
+                                                  id="btn-pick-user"
+                                                  label="Select user"
+                                                  look="placeholder"
+                                                  @click=${this.#onPickUser}
+                                              ></uui-button>`}
                                     </div>
                                 </umb-property-layout>
                             `,
@@ -131,7 +195,7 @@ export class ContentChecksRuleEditorModalElement extends UmbModalBaseElement<
                         ${when(
                             this._targetKind === "role",
                             () => html`
-                                <umb-property-layout label="User group">
+                                <umb-property-layout label="User group" description="The user group this rule applies to.">
                                     <div slot="editor">
                                         <umb-user-group-input
                                             .selection=${this._roleKey ? [this._roleKey] : []}
@@ -144,7 +208,7 @@ export class ContentChecksRuleEditorModalElement extends UmbModalBaseElement<
                         )}
                     </uui-box>
 
-                    <uui-box headline="Block at">
+                    <uui-box headline="Behaviour">
                         <umb-property-layout
                             label="Block at"
                             description="The lowest requirement level that blocks. A failing check at this level or higher blocks; anything below it only warns. Pick None to never block."
@@ -184,7 +248,8 @@ export class ContentChecksRuleEditorModalElement extends UmbModalBaseElement<
             uui-box:not(:first-child) {
                 margin-top: var(--uui-size-layout-1);
             }
-            uui-select {
+            uui-select,
+            #btn-pick-user {
                 width: 100%;
             }
         `,

@@ -15,6 +15,6 @@ export const CONTENT_CHECKS_RULE_EDITOR_MODAL = new UmbModalToken<
 >("ContentChecks.Modal.RuleEditor", {
     modal: {
         type: "sidebar",
-        size: "small",
+        size: "medium",
     },
 });

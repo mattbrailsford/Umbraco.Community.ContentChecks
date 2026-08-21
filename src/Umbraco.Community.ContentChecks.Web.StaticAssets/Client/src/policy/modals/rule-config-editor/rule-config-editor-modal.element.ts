@@ -144,6 +144,7 @@ export class ContentChecksRuleConfigEditorModalElement extends UmbModalBaseEleme
                         .model=${this._configModel}
                         @change=${this.#onConfigChange}
                         empty-message="This check takes no configuration."
+                        default-group-label="Config"
                         style="margin-top: var(--uui-size-layout-1);"
                     >
                     </cc-model-editor>

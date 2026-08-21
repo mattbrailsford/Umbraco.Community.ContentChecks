@@ -29,6 +29,10 @@ export class CcModelEditorElement extends UmbLitElement {
     @property({ type: String, attribute: "empty-message" })
     emptyMessage?: string;
 
+    /** Heading for the box holding fields that don't declare their own `group`. */
+    @property({ type: String, attribute: "default-group-label" })
+    defaultGroupLabel = "General";
+
     @state()
     private _propertyValues: UmbPropertyValueData[] = [];
 
@@ -138,7 +142,7 @@ export class CcModelEditorElement extends UmbLitElement {
     }
 
     #groupFields(fields: CheckConfigFieldResponseModel[]): Array<[string, CheckConfigFieldResponseModel[]]> {
-        const generalKey = "General";
+        const generalKey = this.defaultGroupLabel;
         const groups = new Map<string, CheckConfigFieldResponseModel[]>();
         groups.set(generalKey, []);
 
