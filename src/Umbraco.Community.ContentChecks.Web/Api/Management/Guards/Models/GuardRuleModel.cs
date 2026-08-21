@@ -3,11 +3,17 @@ using Umbraco.Community.ContentChecks.Core.Checks;
 namespace Umbraco.Community.ContentChecks.Web.Api.Management.Guards.Models;
 
 /// <summary>
-/// One rule within a guard — shared shape for both request and response, since a
-/// rule has no server-generated fields.
+/// One rule within a guard — shared shape for both request and response.
 /// </summary>
 public class GuardRuleModel
 {
+    /// <summary>
+    /// The rule's own durable identity, distinct from the owning guard's <c>Key</c>. On a request,
+    /// an empty/omitted value means "this is a new rule" and a fresh one is assigned; an existing
+    /// rule being edited should round-trip whatever value it was given in the response it came from.
+    /// </summary>
+    public Guid Key { get; set; }
+
     /// <summary>
     /// The user this rule applies to, or <c>null</c> if this rule isn't user-scoped.
     /// </summary>

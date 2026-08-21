@@ -15,6 +15,15 @@ export class ContentChecksPolicyWorkspaceEditorElement extends UmbLitElement {
     @state()
     private _model?: ContentChecksPolicyDetailModel;
 
+    /**
+     * Whether the alias field is still following the name -- toggled off the moment someone clicks
+     * the padlock to edit the alias directly. Previously this was inferred from "is the alias
+     * empty", which meant auto-generation silently stopped forever after the very first character
+     * was typed (a non-empty alias looked identical to a deliberately-locked one).
+     */
+    @state()
+    private _isAliasLocked = true;
+
     constructor() {
         super();
         this.consumeContext(CONTENT_CHECKS_POLICY_WORKSPACE_CONTEXT, (context) => {
@@ -26,13 +35,24 @@ export class ContentChecksPolicyWorkspaceEditorElement extends UmbLitElement {
     #onNameChange(e: InputEvent) {
         const name = (e.target as HTMLInputElement).value;
         this.#workspaceContext?.updateProperty("name", name);
-        if (!this._model?.alias) {
+        // Only for a brand new policy -- once one's been saved, its alias is a real identity
+        // (referenced by config, exports, etc.) that a later rename shouldn't silently rewrite.
+        if (this._isAliasLocked && this.#workspaceContext?.getIsNew()) {
             this.#workspaceContext?.updateProperty("alias", this.#toAlias(name));
         }
     }
 
     #onAliasChange(e: InputEvent) {
+        // uui-input-lock is nested inside the name uui-input (slot="append"), so its own "input"
+        // event bubbles up into that outer input's @input listener unless stopped here -- which
+        // read e.target.value expecting the name, but got the alias's value instead, overwriting
+        // the name with whatever was just typed into the alias field.
+        e.stopPropagation();
         this.#workspaceContext?.updateProperty("alias", (e.target as HTMLInputElement).value);
+    }
+
+    #onAliasLockChange(e: Event) {
+        this._isAliasLocked = (e.target as HTMLInputElement & { locked: boolean }).locked;
     }
 
     #toAlias(name: string): string {
@@ -91,7 +111,9 @@ export class ContentChecksPolicyWorkspaceEditorElement extends UmbLitElement {
                             id="alias"
                             label="Alias"
                             .value=${this._model.alias}
+                            ?locked=${this._isAliasLocked}
                             @input=${this.#onAliasChange}
+                            @lock-change=${this.#onAliasLockChange}
                             required
                         ></uui-input-lock>
                     </uui-input>
@@ -155,6 +177,16 @@ export class ContentChecksPolicyWorkspaceEditorElement extends UmbLitElement {
             }
             uui-box {
                 margin-bottom: var(--uui-size-layout-1);
+            }
+            /* umb-property renders its own umb-property-layout internally, with a fixed
+               top/bottom padding of --uui-size-layout-1 -- doubling up against the uui-box's own
+               padding at the very top/bottom of each box. Pulling the first/last property in via a
+               matching negative margin cancels it out without touching umb-property's own shadow DOM. */
+            umb-property:first-of-type {
+                margin-top: calc(var(--uui-size-layout-1) * -1);
+            }
+            umb-property:last-of-type {
+                margin-bottom: calc(var(--uui-size-layout-1) * -1);
             }
         `,
     ];

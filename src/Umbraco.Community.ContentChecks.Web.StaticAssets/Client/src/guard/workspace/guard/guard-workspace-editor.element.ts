@@ -6,7 +6,6 @@ import { CONTENT_CHECKS_GUARD_WORKSPACE_ALIAS } from "../constants.js";
 import { CONTENT_CHECKS_GUARD_WORKSPACE_CONTEXT } from "./guard-workspace.context-token.js";
 import type { ContentChecksGuardWorkspaceContext } from "./guard-workspace.context.js";
 import type { ContentChecksGuardDetailModel, ContentChecksGuardRuleModel } from "../../types.js";
-import "../../components/rules-editor/rules-editor.element.js";
 
 @customElement("content-checks-guard-workspace-editor")
 export class ContentChecksGuardWorkspaceEditorElement extends UmbLitElement {
@@ -36,12 +35,17 @@ export class ContentChecksGuardWorkspaceEditorElement extends UmbLitElement {
 
     #onRulesChange(e: CustomEvent) {
         e.stopPropagation();
-        const rules = (e.target as HTMLElement & { rules: ContentChecksGuardRuleModel[] }).rules;
+        const dataset = e.target as UmbPropertyDatasetElement;
+        const rules = dataset.value.find((v) => v.alias === "rules")?.value as ContentChecksGuardRuleModel[] | undefined;
         this.#workspaceContext?.updateProperty("rules", rules ?? []);
     }
 
     #startNodeFieldValues(): UmbPropertyValueData[] {
         return [{ alias: "startNodeKey", value: this._model?.startNodeKey ?? undefined }];
+    }
+
+    #rulesFieldValues(): UmbPropertyValueData[] {
+        return [{ alias: "rules", value: this._model?.rules ?? [] }];
     }
 
     override render() {
@@ -76,10 +80,14 @@ export class ContentChecksGuardWorkspaceEditorElement extends UmbLitElement {
                     </uui-box>
 
                     <uui-box headline="Rules">
-                        <cc-guard-rules-editor
-                            .rules=${this._model.rules}
-                            @change=${this.#onRulesChange}
-                        ></cc-guard-rules-editor>
+                        <umb-property-dataset .value=${this.#rulesFieldValues()} @change=${this.#onRulesChange}>
+                            <umb-property
+                                label="Rules"
+                                description="Who this guard applies to, and the lowest requirement level that blocks for each."
+                                alias="rules"
+                                property-editor-ui-alias="ContentChecks.PropertyEditorUi.GuardRules"
+                            ></umb-property>
+                        </umb-property-dataset>
                     </uui-box>
                 </div>
 
@@ -108,6 +116,16 @@ export class ContentChecksGuardWorkspaceEditorElement extends UmbLitElement {
             }
             uui-box {
                 margin-bottom: var(--uui-size-layout-1);
+            }
+            /* umb-property renders its own umb-property-layout internally, with a fixed
+               top/bottom padding of --uui-size-layout-1 -- doubling up against the uui-box's own
+               padding at the very top/bottom of each box. Pulling the first/last property in via a
+               matching negative margin cancels it out without touching umb-property's own shadow DOM. */
+            umb-property:first-of-type {
+                margin-top: calc(var(--uui-size-layout-1) * -1);
+            }
+            umb-property:last-of-type {
+                margin-bottom: calc(var(--uui-size-layout-1) * -1);
             }
         `,
     ];

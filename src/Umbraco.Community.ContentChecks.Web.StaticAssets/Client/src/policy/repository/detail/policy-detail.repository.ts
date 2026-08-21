@@ -1,6 +1,6 @@
 import { UmbDetailRepositoryBase } from "@umbraco-cms/backoffice/repository";
 import type { UmbControllerHost } from "@umbraco-cms/backoffice/controller-api";
-import { UmbRequestReloadChildrenOfEntityEvent } from "@umbraco-cms/backoffice/entity-action";
+import { UmbRequestReloadChildrenOfEntityEvent, UmbRequestReloadStructureForEntityEvent } from "@umbraco-cms/backoffice/entity-action";
 import { ContentChecksPolicyDetailServerDataSource } from "./policy-detail.server.data-source.js";
 import { CONTENT_CHECKS_POLICY_DETAIL_STORE_CONTEXT } from "./policy-detail.store.js";
 import type { ContentChecksPolicyDetailModel } from "../../types.js";
@@ -35,6 +35,12 @@ export class ContentChecksPolicyDetailRepository extends UmbDetailRepositoryBase
         const result = await super.save(model);
         if (!result.error) {
             dispatchActionEvent(this, ContentChecksEntityActionEvent.updated(model.unique, CONTENT_CHECKS_POLICY_ENTITY_TYPE));
+            // Distinct from the "children of entity" reload above -- this is what actually tells
+            // the tree to re-fetch THIS row's own data (e.g. its name) rather than its child list.
+            dispatchActionEvent(
+                this,
+                new UmbRequestReloadStructureForEntityEvent({ unique: model.unique, entityType: CONTENT_CHECKS_POLICY_ENTITY_TYPE }),
+            );
         }
         return result;
     }

@@ -126,6 +126,7 @@ export type EvaluationRunResponseModel = {
 };
 
 export type GuardRuleModel = {
+    key: string;
     userKey?: null | string;
     roleKey?: null | string;
     blockAt?: null | RequirementLevel;

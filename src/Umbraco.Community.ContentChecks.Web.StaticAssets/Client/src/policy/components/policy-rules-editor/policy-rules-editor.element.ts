@@ -3,6 +3,7 @@ import { UmbLitElement } from "@umbraco-cms/backoffice/lit-element";
 import { UmbChangeEvent } from "@umbraco-cms/backoffice/event";
 import { UMB_MODAL_MANAGER_CONTEXT } from "@umbraco-cms/backoffice/modal";
 import { tryExecute } from "@umbraco-cms/backoffice/resources";
+import { UmbSorterController } from "@umbraco-cms/backoffice/sorter";
 import { CheckTypesService } from "../../../api/sdk.gen.js";
 import type { CheckTypeResponseModel } from "../../../api/types.gen.js";
 import type { ContentChecksPolicyRuleModel } from "../../types.js";
@@ -25,7 +26,7 @@ export class CcPolicyRulesEditorElement extends UmbLitElement {
         return this._rules;
     }
     public set rules(value: ContentChecksPolicyRuleModel[]) {
-        this._rules = value ?? [];
+        this.#setRules(value ?? []);
     }
 
     @state()
@@ -33,6 +34,23 @@ export class CcPolicyRulesEditorElement extends UmbLitElement {
 
     @state()
     private _checkTypes: CheckTypeResponseModel[] = [];
+
+    #sorter = new UmbSorterController<ContentChecksPolicyRuleModel>(this, {
+        getUniqueOfElement: (element) => element.id,
+        getUniqueOfModel: (rule) => rule.key,
+        identifier: "ContentChecks.SorterIdentifier.PolicyRules",
+        itemSelector: "uui-ref-node",
+        containerSelector: "uui-ref-list",
+        onChange: ({ model }) => {
+            this.#setRules(model);
+            this.#emitChange();
+        },
+    });
+
+    #setRules(rules: ContentChecksPolicyRuleModel[]) {
+        this._rules = rules;
+        this.#sorter.setModel(rules);
+    }
 
     override connectedCallback() {
         super.connectedCallback();
@@ -63,7 +81,7 @@ export class CcPolicyRulesEditorElement extends UmbLitElement {
         const result = await pickerModal.onSubmit();
         if (!result?.rule) return;
 
-        this._rules = [...this._rules, result.rule];
+        this.#setRules([...this._rules, result.rule]);
         this.#emitChange();
     }
 
@@ -82,7 +100,7 @@ export class CcPolicyRulesEditorElement extends UmbLitElement {
             const result = await configModal.onSubmit();
             if (!result?.rule) return;
 
-            this._rules = this._rules.map((r, i) => (i === index ? result.rule : r));
+            this.#setRules(this._rules.map((r, i) => (i === index ? result.rule : r)));
             this.#emitChange();
         } catch {
             // Modal was cancelled -- do nothing.
@@ -90,7 +108,7 @@ export class CcPolicyRulesEditorElement extends UmbLitElement {
     }
 
     #onRemove(index: number) {
-        this._rules = this._rules.filter((_, i) => i !== index);
+        this.#setRules(this._rules.filter((_, i) => i !== index));
         this.#emitChange();
     }
 
@@ -116,6 +134,7 @@ export class CcPolicyRulesEditorElement extends UmbLitElement {
         const checkType = this.#checkTypeFor(rule.checkAlias);
         return html`
             <uui-ref-node
+                id=${rule.key}
                 name=${rule.name || checkType?.name || rule.checkAlias}
                 detail=${this.#summaryFor(rule)}
                 @open=${() => this.#onEdit(rule, index)}

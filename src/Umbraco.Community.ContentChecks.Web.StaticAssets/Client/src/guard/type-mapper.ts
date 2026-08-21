@@ -10,6 +10,7 @@ export const ContentChecksGuardTypeMapper = {
             name: response.name,
             startNodeKey: response.startNodeKey ?? null,
             rules: (response.rules ?? []).map((rule) => ({
+                key: rule.key,
                 userKey: rule.userKey ?? null,
                 roleKey: rule.roleKey ?? null,
                 blockAt: rule.blockAt ?? null,
@@ -23,6 +24,7 @@ export const ContentChecksGuardTypeMapper = {
             name: model.name,
             startNodeKey: model.startNodeKey,
             rules: model.rules.map((rule) => ({
+                key: rule.key,
                 userKey: rule.userKey,
                 roleKey: rule.roleKey,
                 blockAt: rule.blockAt,

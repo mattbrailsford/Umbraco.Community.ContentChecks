@@ -5,7 +5,7 @@ import { CONTENT_CHECKS_GUARD_DETAIL_STORE_CONTEXT } from "./guard.store.js";
 import type { ContentChecksGuardDetailModel } from "../../types.js";
 import { CONTENT_CHECKS_GUARD_ENTITY_TYPE, CONTENT_CHECKS_GUARD_ROOT_ENTITY_TYPE } from "../../entity.js";
 import { ContentChecksEntityActionEvent, dispatchActionEvent } from "../../../core/index.js";
-import { UmbRequestReloadChildrenOfEntityEvent } from "@umbraco-cms/backoffice/entity-action";
+import { UmbRequestReloadChildrenOfEntityEvent, UmbRequestReloadStructureForEntityEvent } from "@umbraco-cms/backoffice/entity-action";
 
 /**
  * Repository for guard CRUD -- flat list, no folders, so every create/delete
@@ -39,6 +39,12 @@ export class ContentChecksGuardDetailRepository extends UmbDetailRepositoryBase<
         const result = await super.save(model);
         if (!result.error) {
             dispatchActionEvent(this, ContentChecksEntityActionEvent.updated(model.unique, CONTENT_CHECKS_GUARD_ENTITY_TYPE));
+            // Distinct from the "children of entity" reload above -- this is what actually tells
+            // the tree to re-fetch THIS row's own data (e.g. its name) rather than its child list.
+            dispatchActionEvent(
+                this,
+                new UmbRequestReloadStructureForEntityEvent({ unique: model.unique, entityType: CONTENT_CHECKS_GUARD_ENTITY_TYPE }),
+            );
         }
         return result;
     }

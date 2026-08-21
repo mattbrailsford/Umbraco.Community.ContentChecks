@@ -12,6 +12,13 @@ namespace Umbraco.Community.ContentChecks.Core.Policies;
 public sealed class GuardRule
 {
     /// <summary>
+    /// The rule's own durable identity, distinct from <see cref="Guard.Key"/> -- lets a client
+    /// reorder rules (or otherwise track one across edits) without relying on array position or
+    /// content, since two rules could otherwise carry identical User/Role/BlockAt values.
+    /// </summary>
+    public Guid Key { get; set; } = Guid.NewGuid();
+
+    /// <summary>
     /// The user this rule applies to, or <c>null</c> if this rule isn't user-scoped.
     /// </summary>
     public Guid? UserKey { get; set; }

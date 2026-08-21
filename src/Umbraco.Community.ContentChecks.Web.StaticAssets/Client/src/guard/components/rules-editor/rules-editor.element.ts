@@ -2,6 +2,7 @@ import { css, customElement, html, property, repeat, state } from "@umbraco-cms/
 import { UmbLitElement } from "@umbraco-cms/backoffice/lit-element";
 import { UmbChangeEvent } from "@umbraco-cms/backoffice/event";
 import { UMB_MODAL_MANAGER_CONTEXT } from "@umbraco-cms/backoffice/modal";
+import { UmbSorterController } from "@umbraco-cms/backoffice/sorter";
 import type { ContentChecksGuardRuleModel } from "../../types.js";
 import { CONTENT_CHECKS_RULE_EDITOR_MODAL } from "../../modals/rule-editor/rule-editor-modal.token.js";
 
@@ -21,11 +22,28 @@ export class CcGuardRulesEditorElement extends UmbLitElement {
         return this._rules;
     }
     public set rules(value: ContentChecksGuardRuleModel[]) {
-        this._rules = value ?? [];
+        this.#setRules(value ?? []);
     }
 
     @state()
     private _rules: ContentChecksGuardRuleModel[] = [];
+
+    #sorter = new UmbSorterController<ContentChecksGuardRuleModel>(this, {
+        getUniqueOfElement: (element) => element.id,
+        getUniqueOfModel: (rule) => rule.key,
+        identifier: "ContentChecks.SorterIdentifier.GuardRules",
+        itemSelector: "uui-ref-node",
+        containerSelector: "uui-ref-list",
+        onChange: ({ model }) => {
+            this.#setRules(model);
+            this.#emitChange();
+        },
+    });
+
+    #setRules(rules: ContentChecksGuardRuleModel[]) {
+        this._rules = rules;
+        this.#sorter.setModel(rules);
+    }
 
     #emitChange() {
         this.dispatchEvent(new UmbChangeEvent());
@@ -41,7 +59,7 @@ export class CcGuardRulesEditorElement extends UmbLitElement {
             const result = await modal.onSubmit();
             if (!result?.rule) return;
 
-            this._rules = [...this._rules, result.rule];
+            this.#setRules([...this._rules, result.rule]);
             this.#emitChange();
         } catch {
             // Modal was cancelled -- do nothing.
@@ -58,7 +76,7 @@ export class CcGuardRulesEditorElement extends UmbLitElement {
             const result = await modal.onSubmit();
             if (!result?.rule) return;
 
-            this._rules = this._rules.map((r, i) => (i === index ? result.rule : r));
+            this.#setRules(this._rules.map((r, i) => (i === index ? result.rule : r)));
             this.#emitChange();
         } catch {
             // Modal was cancelled -- do nothing.
@@ -66,7 +84,7 @@ export class CcGuardRulesEditorElement extends UmbLitElement {
     }
 
     #onRemove(index: number) {
-        this._rules = this._rules.filter((_, i) => i !== index);
+        this.#setRules(this._rules.filter((_, i) => i !== index));
         this.#emitChange();
     }
 
@@ -95,7 +113,12 @@ export class CcGuardRulesEditorElement extends UmbLitElement {
 
     #renderRule(rule: ContentChecksGuardRuleModel, index: number) {
         return html`
-            <uui-ref-node name=${this.#nameFor(rule)} detail=${this.#summaryFor(rule)} @open=${() => this.#onEdit(rule, index)}>
+            <uui-ref-node
+                id=${rule.key}
+                name=${this.#nameFor(rule)}
+                detail=${this.#summaryFor(rule)}
+                @open=${() => this.#onEdit(rule, index)}
+            >
                 <umb-icon slot="icon" name="icon-user"></umb-icon>
                 <uui-action-bar slot="actions">
                     <uui-button label="Edit" @click=${() => this.#onEdit(rule, index)}>

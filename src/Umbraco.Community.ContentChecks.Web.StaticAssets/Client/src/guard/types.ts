@@ -7,6 +7,8 @@ import type { RequirementLevel } from "../api/types.gen.js";
  * requirement level that blocks; `null` means never block.
  */
 export interface ContentChecksGuardRuleModel {
+    /** The rule's own durable identity. Empty for a rule not yet saved -- the server assigns one. */
+    key: string;
     userKey: string | null;
     roleKey: string | null;
     blockAt: RequirementLevel | null;

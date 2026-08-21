@@ -70,6 +70,9 @@ export class ContentChecksRuleEditorModalElement extends UmbModalBaseElement<
 
     #onSubmit() {
         const rule: ContentChecksGuardRuleModel = {
+            // Preserve an existing rule's identity across an edit -- crypto.randomUUID() only for
+            // a genuinely new rule.
+            key: this.data?.existingRule?.key ?? crypto.randomUUID(),
             userKey: this._targetKind === "user" ? this._userKey : null,
             roleKey: this._targetKind === "role" ? this._roleKey : null,
             blockAt: this._blockAt === "none" ? null : this._blockAt,

@@ -83,6 +83,9 @@ export class ContentChecksPolicyTreeServerDataSource
             name: item.name,
             hasChildren: item.hasChildren,
             isFolder: item.isFolder,
+            // Folders always render as icon-folder regardless of this (see default-tree-item-card),
+            // so this only actually matters for the policy items themselves.
+            icon: item.isFolder ? undefined : "icon-document-medal",
         };
     }
 }

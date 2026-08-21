@@ -50,6 +50,7 @@ export class ContentChecksGuardTreeServerDataSource implements UmbTreeDataSource
             name: guard.name,
             hasChildren: false,
             isFolder: false,
+            icon: "icon-shield",
         }));
 
         return { data: { total: items.length, totalBefore: 0, totalAfter: 0, items } };

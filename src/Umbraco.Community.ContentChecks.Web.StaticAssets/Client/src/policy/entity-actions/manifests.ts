@@ -26,7 +26,7 @@ export const policyEntityActionManifests: Array<UmbExtensionManifest> = [
         weight: 1000,
         api: () => import("./create-policy-option.action.js"),
         forEntityTypes: creatableEntityTypes,
-        meta: { icon: "icon-checkbox-dotted-line", label: "Policy", description: "Attach a set of rules to a content type." },
+        meta: { icon: "icon-document-medal", label: "Policy", description: "Attach a set of rules to a content type." },
     },
     {
         type: "entityCreateOptionAction",

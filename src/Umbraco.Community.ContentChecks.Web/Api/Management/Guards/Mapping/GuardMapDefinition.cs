@@ -35,6 +35,7 @@ public class GuardMapDefinition : IMapDefinition
     // Umbraco.Code.MapAll
     private static void MapRuleToResponse(GuardRule source, GuardRuleModel target, MapperContext context)
     {
+        target.Key = source.Key;
         target.UserKey = source.UserKey;
         target.RoleKey = source.RoleKey;
         target.BlockAt = source.BlockAt;
@@ -51,6 +52,10 @@ public class GuardMapDefinition : IMapDefinition
     // Umbraco.Code.MapAll
     private static void MapRuleFromRequest(GuardRuleModel source, GuardRule target, MapperContext context)
     {
+        // An empty key means the client is submitting a brand new rule -- generate its durable
+        // identity here rather than trusting a client-supplied one, but preserve whatever key an
+        // existing rule already carries.
+        target.Key = source.Key == Guid.Empty ? Guid.NewGuid() : source.Key;
         target.UserKey = source.UserKey;
         target.RoleKey = source.RoleKey;
         target.BlockAt = source.BlockAt;

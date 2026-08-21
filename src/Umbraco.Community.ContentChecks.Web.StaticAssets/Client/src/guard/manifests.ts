@@ -3,6 +3,7 @@ import { guardRepositoryManifests } from "./repository/manifests.js";
 import { guardEntityActionManifests } from "./entity-actions/manifests.js";
 import { guardWorkspaceManifests } from "./workspace/guard/manifests.js";
 import { guardRuleModalManifests } from "./modals/manifests.js";
+import { guardPropertyEditorManifests } from "./property-editors/manifests.js";
 
 export const guardManifests: Array<UmbExtensionManifest> = [
     ...guardTreeManifests,
@@ -10,4 +11,5 @@ export const guardManifests: Array<UmbExtensionManifest> = [
     ...guardEntityActionManifests,
     ...guardWorkspaceManifests,
     ...guardRuleModalManifests,
+    ...guardPropertyEditorManifests,
 ];
