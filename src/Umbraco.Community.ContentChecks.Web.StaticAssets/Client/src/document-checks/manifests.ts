@@ -7,12 +7,19 @@ import {
 
 export const documentChecksManifests: Array<UmbExtensionManifest> = [
     {
+        // Not one of Umbraco's own icons -- registered by the "icons" manifest below.
+        type: "icons",
+        alias: "ContentChecks.Icons.DocumentChecks",
+        name: "Content Checks Icons",
+        js: () => import("./icons/icons.js"),
+    },
+    {
         type: "workspaceView",
         alias: CONTENT_CHECKS_DOCUMENT_CHECKS_WORKSPACE_VIEW_ALIAS,
         name: "Content Checks Document Checks View",
         element: () => import("./document-checks-workspace-view.element.js"),
         weight: 90,
-        meta: { label: "Checks", pathname: "content-checks", icon: "icon-circle-dotted-active" },
+        meta: { label: "Checks", pathname: "content-checks", icon: "icon-content-checks-clipboard-check" },
         conditions: [{ alias: UMB_WORKSPACE_CONDITION_ALIAS, match: UMB_DOCUMENT_WORKSPACE_ALIAS }],
     },
     {

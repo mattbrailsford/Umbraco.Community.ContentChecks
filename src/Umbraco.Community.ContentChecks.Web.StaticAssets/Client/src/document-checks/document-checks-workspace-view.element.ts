@@ -689,6 +689,7 @@ export class CcDocumentChecksWorkspaceViewElement extends UmbLitElement {
                 color: var(--uui-color-text-alt);
                 font-size: 0.8rem;
                 margin-top: var(--uui-size-space-2);
+                opacity: 0.6;
             }
             .rule-status {
                 flex-shrink: 0;
