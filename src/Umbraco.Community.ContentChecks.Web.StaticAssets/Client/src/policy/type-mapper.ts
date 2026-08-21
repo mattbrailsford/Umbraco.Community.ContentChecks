@@ -15,6 +15,7 @@ export const ContentChecksPolicyTypeMapper = {
             rules: (response.rules ?? []).map((rule) => ({
                 key: rule.key,
                 checkAlias: rule.checkAlias,
+                name: rule.name ?? null,
                 config: (rule.config as Record<string, unknown> | null) ?? null,
                 requirementLevel: rule.requirementLevel,
                 notEvaluatedPolicy: rule.notEvaluatedPolicy,
@@ -33,6 +34,7 @@ export const ContentChecksPolicyTypeMapper = {
             rules: model.rules.map((rule) => ({
                 key: rule.key,
                 checkAlias: rule.checkAlias,
+                name: rule.name,
                 config: rule.config,
                 requirementLevel: rule.requirementLevel,
                 notEvaluatedPolicy: rule.notEvaluatedPolicy,

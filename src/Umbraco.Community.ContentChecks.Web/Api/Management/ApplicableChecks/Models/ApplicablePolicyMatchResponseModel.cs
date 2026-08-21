@@ -37,6 +37,14 @@ public class ApplicablePolicyMatchResponseModel
     public ContentCheckEffectiveCheckProvenance Provenance { get; set; }
 
     /// <summary>
+    /// The display name of the content type this policy is configured against (<see
+    /// cref="ContentCheckPolicy.ContentTypeKey"/>) — e.g. "Seo Base" for a Composition match,
+    /// distinct from whatever content type is actually being checked. <c>null</c> if that content
+    /// type no longer exists.
+    /// </summary>
+    public string? ContentTypeName { get; set; }
+
+    /// <summary>
     /// This policy's rules that resolved to a registered check.
     /// </summary>
     public IReadOnlyList<ApplicableRuleResponseModel> Rules { get; set; } = [];

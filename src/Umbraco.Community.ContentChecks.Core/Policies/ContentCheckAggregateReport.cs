@@ -25,6 +25,14 @@ public sealed class ContentCheckAggregateReport
     public string? ContentStamp { get; init; }
 
     /// <summary>
+    /// When this report was produced — <c>null</c> only if <see cref="Entries"/> is empty (nothing
+    /// ran, so there's nothing to date). For a persisted report this is when the underlying
+    /// <see cref="ContentCheckStoredResult"/> rows were saved; for a live run it's the moment the run
+    /// completed.
+    /// </summary>
+    public DateTime? RanAtUtc { get; init; }
+
+    /// <summary>
     /// Every entry from every resolved target, flattened into one list.
     /// </summary>
     public required IReadOnlyList<ContentCheckAggregateReportEntry> Entries { get; init; }

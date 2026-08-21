@@ -83,6 +83,10 @@ public class ByContentKeyCheckResultsController : CheckResultsControllerBase
         {
             ContentKey = contentKey,
             ContentStamp = results.FirstOrDefault()?.ContentStamp,
+            // EF Core round-trips DateTime columns with Kind = Unspecified, so without this the
+            // serialized value would be missing its "Z" suffix and a browser would misread it as
+            // local time rather than UTC.
+            RanAtUtc = results.Count > 0 ? DateTime.SpecifyKind(results.Max(r => r.RanAtUtc), DateTimeKind.Utc) : null,
             Entries = results
                 .Where(r => levelByLocation.ContainsKey((PathKey(r.Path), r.RuleKey)))
                 .Select(r => new ContentCheckAggregateReportEntry

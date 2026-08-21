@@ -65,6 +65,7 @@ internal sealed class ContentCheckEvaluationService : IContentCheckEvaluationSer
         {
             ContentKey = content.Key,
             ContentStamp = new ContentCheckSnapshot(content).ContentStamp,
+            RanAtUtc = entries.Count > 0 ? DateTime.UtcNow : null,
             Entries = entries,
         };
     }

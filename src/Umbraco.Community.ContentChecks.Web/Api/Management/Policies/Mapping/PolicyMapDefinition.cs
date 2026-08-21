@@ -40,6 +40,7 @@ public class PolicyMapDefinition : IMapDefinition
     {
         target.Key = source.Key;
         target.CheckAlias = source.CheckAlias;
+        target.Name = source.Name;
         target.Config = source.Config.Config;
         target.RequirementLevel = source.RequirementLevel;
         target.NotEvaluatedPolicy = source.NotEvaluatedPolicy;
@@ -64,6 +65,7 @@ public class PolicyMapDefinition : IMapDefinition
         // existing rule already carries so it stays matched to its past results across edits.
         target.Key = source.Key == Guid.Empty ? Guid.NewGuid() : source.Key;
         target.CheckAlias = source.CheckAlias;
+        target.Name = source.Name;
         target.Config = new() { Config = source.Config };
         target.RequirementLevel = source.RequirementLevel;
         target.NotEvaluatedPolicy = source.NotEvaluatedPolicy;

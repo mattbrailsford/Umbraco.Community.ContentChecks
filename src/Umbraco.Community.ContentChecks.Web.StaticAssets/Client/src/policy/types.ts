@@ -8,6 +8,8 @@ export interface ContentChecksPolicyRuleModel {
     /** The rule's own durable identity. Empty for a rule not yet saved -- the server assigns one. */
     key: string;
     checkAlias: string;
+    /** An editor-supplied display title, e.g. "Meta description required" -- falls back to the check type's own name when not set. */
+    name: string | null;
     config: Record<string, unknown> | null;
     requirementLevel: RequirementLevel;
     notEvaluatedPolicy: ContentCheckNotEvaluatedPolicy;

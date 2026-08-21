@@ -15,6 +15,7 @@ export type ApplicablePolicyMatchResponseModel = {
     policyAlias: string;
     policyName: string;
     provenance: ContentCheckEffectiveCheckProvenance;
+    contentTypeName?: null | string;
     rules: Array<ApplicableRuleResponseModel>;
 };
 
@@ -22,6 +23,7 @@ export type ApplicableRuleResponseModel = {
     ruleKey: string;
     checkAlias: string;
     checkName: string;
+    ruleName?: null | string;
     requirementLevel: RequirementLevel;
 };
 
@@ -53,6 +55,7 @@ export type CheckTypeResponseModel = {
 export type ContentCheckAggregateReport = {
     contentKey: string;
     contentStamp?: null | string;
+    ranAtUtc?: null | string;
     entries: Array<ContentCheckAggregateReportEntry>;
     overallStatus: ContentCheckStatus;
 };
@@ -179,6 +182,7 @@ export type PolicyResponseModel = {
 export type PolicyRuleModel = {
     key: string;
     checkAlias: string;
+    name?: null | string;
     config?: null | JsonElement;
     requirementLevel: RequirementLevel;
     notEvaluatedPolicy: ContentCheckNotEvaluatedPolicy;

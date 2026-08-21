@@ -244,6 +244,7 @@ internal sealed class ContentCheckResolutionService : IContentCheckResolutionSer
             {
                 RuleKey = rule.Key,
                 Check = check,
+                Name = rule.Name,
                 Config = rule.Config,
                 RequirementLevel = rule.RequirementLevel,
                 NotEvaluatedPolicy = rule.NotEvaluatedPolicy,

@@ -15,6 +15,9 @@ export class ContentChecksRuleConfigEditorModalElement extends UmbModalBaseEleme
     ContentChecksRuleConfigEditorModalValue
 > {
     @state()
+    private _name = "";
+
+    @state()
     private _requirementLevel: ContentChecksPolicyRuleModel["requirementLevel"] = "Recommended";
 
     @state()
@@ -27,10 +30,15 @@ export class ContentChecksRuleConfigEditorModalElement extends UmbModalBaseEleme
         super.connectedCallback();
 
         if (this.data?.existingRule) {
+            this._name = this.data.existingRule.name ?? "";
             this._requirementLevel = this.data.existingRule.requirementLevel;
             this._notEvaluatedPolicy = this.data.existingRule.notEvaluatedPolicy;
             this._configModel = this.data.existingRule.config ? { ...this.data.existingRule.config } : {};
         }
+    }
+
+    #onNameChange(e: Event) {
+        this._name = (e.target as HTMLInputElement).value;
     }
 
     #onRequirementLevelChange(e: Event) {
@@ -51,6 +59,7 @@ export class ContentChecksRuleConfigEditorModalElement extends UmbModalBaseEleme
             // a genuinely new rule, so results already stored against it stay matched.
             key: this.data?.existingRule?.key ?? crypto.randomUUID(),
             checkAlias: this.data!.checkType.alias,
+            name: this._name.trim() || null,
             requirementLevel: this._requirementLevel,
             notEvaluatedPolicy: this._notEvaluatedPolicy,
             config: Object.keys(this._configModel).length > 0 ? this._configModel : null,
@@ -73,6 +82,20 @@ export class ContentChecksRuleConfigEditorModalElement extends UmbModalBaseEleme
             <umb-body-layout headline=${headline}>
                 <div>
                     <uui-box headline="General">
+                        <umb-property-layout
+                            label="Name"
+                            description="An optional display title for this rule, e.g. &quot;Meta description required&quot;. Falls back to the check's own name when left blank."
+                        >
+                            <div slot="editor">
+                                <uui-input
+                                    id="name"
+                                    placeholder=${checkType?.name ?? "Enter a name..."}
+                                    .value=${this._name}
+                                    @input=${this.#onNameChange}
+                                ></uui-input>
+                            </div>
+                        </umb-property-layout>
+
                         <umb-property-layout label="Requirement level" description="How important a failing check is. Whether it actually blocks anything is decided separately, by a Guard.">
                             <div slot="editor">
                                 <uui-select
@@ -143,7 +166,8 @@ export class ContentChecksRuleConfigEditorModalElement extends UmbModalBaseEleme
             uui-box:not(:first-child) {
                 margin-top: var(--uui-size-layout-1);
             }
-            uui-select {
+            uui-select,
+            uui-input#name {
                 width: 100%;
             }
         `,

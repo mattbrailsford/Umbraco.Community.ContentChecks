@@ -20,6 +20,13 @@ public sealed class ResolvedContentCheckRule
     public required IContentCheck Check { get; init; }
 
     /// <summary>
+    /// The rule's own display title, if an editor gave it one — see
+    /// <see cref="Policies.ContentCheckPolicyRule.Name"/>. <c>null</c> means callers should fall
+    /// back to <see cref="IContentCheck.Name"/>.
+    /// </summary>
+    public string? Name { get; init; }
+
+    /// <summary>
     /// The rule's configuration for this check.
     /// </summary>
     public required ContentCheckConfig Config { get; init; }

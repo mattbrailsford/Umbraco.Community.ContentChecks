@@ -116,7 +116,7 @@ export class CcPolicyRulesEditorElement extends UmbLitElement {
         const checkType = this.#checkTypeFor(rule.checkAlias);
         return html`
             <uui-ref-node
-                name=${checkType?.name ?? rule.checkAlias}
+                name=${rule.name || checkType?.name || rule.checkAlias}
                 detail=${this.#summaryFor(rule)}
                 @open=${() => this.#onEdit(rule, index)}
             >

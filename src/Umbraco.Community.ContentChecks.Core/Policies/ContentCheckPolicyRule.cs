@@ -27,6 +27,15 @@ public sealed class ContentCheckPolicyRule
     public required string CheckAlias { get; set; }
 
     /// <summary>
+    /// An editor-supplied display title for this specific rule, e.g. "Meta description required" —
+    /// distinct from the check type's own generic <see cref="IContentCheck.Name"/> (e.g. "Required
+    /// property"), which says nothing about what this particular rule instance is configured to
+    /// check. <c>null</c> until an editor names it, in which case callers fall back to the check
+    /// type's name.
+    /// </summary>
+    public string? Name { get; set; }
+
+    /// <summary>
     /// The check's configuration for this rule.
     /// </summary>
     public ContentCheckConfig Config { get; set; } = new();

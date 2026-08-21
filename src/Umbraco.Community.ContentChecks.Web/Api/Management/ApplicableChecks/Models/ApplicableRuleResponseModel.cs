@@ -32,6 +32,13 @@ public class ApplicableRuleResponseModel
     public string CheckName { get; set; } = string.Empty;
 
     /// <summary>
+    /// The rule's own editor-supplied display title, e.g. "Meta description required" -- <c>null</c>
+    /// if the editor never gave it one, in which case a client should fall back to
+    /// <see cref="CheckName"/>.
+    /// </summary>
+    public string? RuleName { get; set; }
+
+    /// <summary>
     /// How important a failure of this rule is.
     /// </summary>
     public RequirementLevel RequirementLevel { get; set; }

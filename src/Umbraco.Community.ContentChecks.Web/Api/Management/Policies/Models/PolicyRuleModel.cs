@@ -26,6 +26,13 @@ public class PolicyRuleModel
     public string CheckAlias { get; set; } = string.Empty;
 
     /// <summary>
+    /// An editor-supplied display title for this rule, e.g. "Meta description required" -- <c>null</c>
+    /// falls back to the check type's own generic name (e.g. "Required property") wherever this
+    /// rule's title is shown.
+    /// </summary>
+    public string? Name { get; set; }
+
+    /// <summary>
     /// The check's configuration for this rule, or <c>null</c> if it takes none.
     /// </summary>
     public JsonElement? Config { get; set; }

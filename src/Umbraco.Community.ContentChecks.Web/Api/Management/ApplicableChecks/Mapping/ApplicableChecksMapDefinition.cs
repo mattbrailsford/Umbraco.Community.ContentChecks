@@ -1,4 +1,5 @@
 using Umbraco.Cms.Core.Mapping;
+using Umbraco.Cms.Core.Services;
 using Umbraco.Community.ContentChecks.Core.Checks;
 using Umbraco.Community.ContentChecks.Core.Policies;
 using Umbraco.Community.ContentChecks.Web.Api.Management.ApplicableChecks.Models;
@@ -11,6 +12,13 @@ namespace Umbraco.Community.ContentChecks.Web.Api.Management.ApplicableChecks.Ma
 /// </summary>
 public class ApplicableChecksMapDefinition : IMapDefinition
 {
+    private readonly IContentTypeService _contentTypeService;
+
+    public ApplicableChecksMapDefinition(IContentTypeService contentTypeService)
+    {
+        _contentTypeService = contentTypeService;
+    }
+
     /// <inheritdoc />
     public void DefineMaps(IUmbracoMapper mapper)
     {
@@ -31,12 +39,13 @@ public class ApplicableChecksMapDefinition : IMapDefinition
     }
 
     // Umbraco.Code.MapAll
-    private static void MapMatchToResponse(ContentCheckResolvedPolicyMatch source, ApplicablePolicyMatchResponseModel target, MapperContext context)
+    private void MapMatchToResponse(ContentCheckResolvedPolicyMatch source, ApplicablePolicyMatchResponseModel target, MapperContext context)
     {
         target.PolicyKey = source.Policy.Key;
         target.PolicyAlias = source.Policy.Alias;
         target.PolicyName = source.Policy.Name;
         target.Provenance = source.Provenance;
+        target.ContentTypeName = _contentTypeService.Get(source.Policy.ContentTypeKey)?.Name;
         target.Rules = context.MapEnumerable<ResolvedContentCheckRule, ApplicableRuleResponseModel>(source.Rules);
     }
 
@@ -46,6 +55,7 @@ public class ApplicableChecksMapDefinition : IMapDefinition
         target.RuleKey = source.RuleKey;
         target.CheckAlias = source.Check.Alias;
         target.CheckName = source.Check.Name;
+        target.RuleName = source.Name;
         target.RequirementLevel = source.RequirementLevel;
     }
 }
