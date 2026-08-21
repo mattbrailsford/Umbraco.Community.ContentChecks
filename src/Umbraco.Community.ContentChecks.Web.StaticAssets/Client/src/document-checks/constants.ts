@@ -1,1 +1,2 @@
 export const CONTENT_CHECKS_DOCUMENT_CHECKS_WORKSPACE_VIEW_ALIAS = "ContentChecks.WorkspaceView.DocumentChecks";
+export const CONTENT_CHECKS_DOCUMENT_CHECKS_BADGE_WORKSPACE_CONTEXT_ALIAS = "ContentChecks.WorkspaceContext.DocumentChecksBadge";

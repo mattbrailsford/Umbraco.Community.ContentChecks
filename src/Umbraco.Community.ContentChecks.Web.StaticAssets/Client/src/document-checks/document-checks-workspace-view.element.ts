@@ -4,6 +4,7 @@ import { UmbLitElement } from "@umbraco-cms/backoffice/lit-element";
 import { UmbTextStyles } from "@umbraco-cms/backoffice/style";
 import { UMB_AUTH_CONTEXT } from "@umbraco-cms/backoffice/auth";
 import { UMB_ENTITY_CONTEXT } from "@umbraco-cms/backoffice/entity";
+import { UMB_HINT_CONTEXT, type UmbHintController } from "@umbraco-cms/backoffice/hint";
 import { UMB_NOTIFICATION_CONTEXT } from "@umbraco-cms/backoffice/notification";
 import { UMB_SERVER_CONTEXT } from "@umbraco-cms/backoffice/server";
 import { tryExecute } from "@umbraco-cms/backoffice/resources";
@@ -25,6 +26,9 @@ import type {
  * where `ContentCheckRunHub` is mapped to.
  */
 const RUN_HUB_PATH = "/umbraco/content-checks/run-hub";
+
+/** Stable id for the tab-badge hint, so a re-computed count replaces the old one rather than stacking. */
+const FAILURE_HINT_UNIQUE = "content-checks-failures";
 
 const RELATIVE_TIME_FORMATTER = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
 
@@ -106,6 +110,7 @@ export class CcDocumentChecksWorkspaceViewElement extends UmbLitElement {
 
     #connection?: HubConnection;
     #clockTimer?: ReturnType<typeof setInterval>;
+    #hintContext?: UmbHintController;
 
     constructor() {
         super();
@@ -120,6 +125,10 @@ export class CcDocumentChecksWorkspaceViewElement extends UmbLitElement {
                 },
                 "_observeUnique",
             );
+        });
+        this.consumeContext(UMB_HINT_CONTEXT, (context) => {
+            this.#hintContext = context;
+            this.#updateFailureHint();
         });
     }
 
@@ -141,6 +150,9 @@ export class CcDocumentChecksWorkspaceViewElement extends UmbLitElement {
         this._isLoading = true;
         this._resultsByKey = new Map();
         this._ranAtUtc = undefined;
+        // Clear immediately rather than waiting on the fetch below -- otherwise a badge left over
+        // from whatever content item was open before this one stays visible while loading.
+        this.#hintContext?.removeOne(FAILURE_HINT_UNIQUE);
 
         const [{ data: targets }, { data: report }] = await Promise.all([
             tryExecute(this, ApplicableChecksService.getApplicableChecksByContentKey({ path: { contentKey: this._contentKey } })),
@@ -294,6 +306,30 @@ export class CcDocumentChecksWorkspaceViewElement extends UmbLitElement {
         if (report.ranAtUtc) {
             this._ranAtUtc = report.ranAtUtc;
         }
+        this.#updateFailureHint();
+    }
+
+    /**
+     * Mirrors the summary bar's own failure count onto this view's tab in the document workspace's
+     * tab strip -- a Mandatory failure renders as Umbraco's own "invalid" (red, attention-pulsing)
+     * badge colour, same as a property validation error; a Recommended/Optional-only failure is a
+     * plain warning badge instead, since nothing about it blocks anything.
+     */
+    #updateFailureHint() {
+        if (!this.#hintContext) return;
+        this.#hintContext.removeOne(FAILURE_HINT_UNIQUE);
+
+        if (this._ranAtUtc === undefined) return;
+
+        const summary = this.#computeSummary();
+        const failed = summary.mandatoryFailed + summary.recommendedFailed;
+        if (failed === 0) return;
+
+        this.#hintContext.addOne({
+            unique: FAILURE_HINT_UNIQUE,
+            text: String(failed),
+            color: summary.mandatoryFailed > 0 ? "invalid" : "warning",
+        });
     }
 
     #formatLastRun(iso: string) {
