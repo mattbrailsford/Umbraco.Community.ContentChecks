@@ -35,9 +35,14 @@ public class ContentCheckConfigSchemaBuilderTests
     [Test]
     public void BuildForType_ReadsDefaultValueFromPropertyInitializer()
     {
-        var schema = _builder.BuildForType<StubRubricCheckConfig>("stub-rubric");
+        var schema = _builder.BuildForType<ConfigWithDefaultValue>("config-with-default-value");
 
-        var field = schema.Fields.Single(f => f.PropertyName == nameof(StubRubricCheckConfig.Threshold));
+        var field = schema.Fields.Single(f => f.PropertyName == nameof(ConfigWithDefaultValue.Threshold));
         Assert.That(field.DefaultValue, Is.EqualTo(0.7));
+    }
+
+    private sealed class ConfigWithDefaultValue
+    {
+        public double Threshold { get; set; } = 0.7;
     }
 }

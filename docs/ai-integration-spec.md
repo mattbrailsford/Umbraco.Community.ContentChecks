@@ -1,6 +1,6 @@
 # AI Integration — `Umbraco.Community.ContentChecks.AI`
 
-**Status:** Build sketch only (Phase 5).
+**Status:** First real check built and unit-tested (2026-11-13) — `RubricContentCheck`, a free-text rubric judged via Umbraco.AI's Decision API, plus the agent tools and a hard round cap. See the build checklist below for what's done versus still open.
 **Part of:** [Overview](overview.md). Implements [Core Contract](core-contract-spec.md)'s `IContentCheck` for the AI-judged tier; doesn't change the contract itself.
 
 ---
@@ -17,15 +17,15 @@ A project **inside this repo**, not inside the Umbraco.AI monorepo (see [Overvie
 
 ## Build checklist
 
-- [ ] Real AI-judged check: rubric scored by an Umbraco.AI profile, returning structured output (score, verdict, per-target feedback).
-- [ ] **Rubric authoring UX, settled: free-form text.** Resolves [open question 1](overview.md) — a plain multi-line text field on the rubric check's `TConfig`, no guided/weighted-criteria form. Faster to author, and the AI-assisted authoring idea below only makes sense once free text is already the input shape it's assisting with.
-- [ ] **The judge profile is configured separately from any generating profile** (finding G1). Warn in the UI when they resolve to the same profile.
-- [ ] Structured output via a simplified schema + server-side transform, reusing the `IAISimplifiedPropertyValueTransformer` lesson from the Prompt package (`{}` schema nodes break OpenAI strict mode).
-- [ ] Map provider failure, rate-limit, timeout and missing-key onto `NotEvaluated` — never onto `Fail`.
-- [ ] Agent tools: `run_content_checks` (returns the report), `list_content_check_policies`.
-- [ ] **Loop discipline in the tool layer (finding G2), settled: the tool enforces a hard round cap itself.** Resolves [open question 2](overview.md) — not the agent's system prompt, not just a tool-description hint an agent could ignore. Report round count and track best attempt so far regardless; the cap is what actually stops the loop, the reporting is what lets the caller see why.
-- [ ] **Ship default rubrics** (finding K): tone-of-voice, readability, SEO value. A blank rubric box produces garbage.
-- [ ] Delete [Core Contract](core-contract-spec.md)'s throwaway proving check B once this ships a real one.
+- [x] Real AI-judged check: `RubricContentCheck` (`Cost.Metered` + `Kind.Nondeterministic`), judged via Umbraco.AI's experimental Decision API (`IAIDecisionService.AskAsync`) rather than a hand-rolled chat prompt — fixed `TrueCriteria`/`FalseCriteria`, the admin's rubric only ever appears in `Instructions`, content passed as `state`. Returns a calibrated pass probability (`Score`) and a `Pass`/`Fail` verdict against the configured `Threshold`. **Deviates from the original plan here:** the Decision API returns a probability, not free text, so there's no per-target judge reasoning to surface — the `Message` is a generic score-vs-threshold line, not itemized feedback.
+- [x] **Rubric authoring UX, settled: free-form text.** Resolves [open question 1](overview.md) — `RubricContentCheckConfig.Rubric` is a plain multi-line text field, no guided/weighted-criteria form.
+- [x] **The judge profile is configured separately from any generating profile** (finding G1) — `ProfileId` is its own optional field (`null` uses the default decision profile), and the field description tells the admin to use a different profile than whatever generated the content. **Not yet built:** no UI warning fires when the judge and generating profiles actually do resolve to the same one.
+- [x] ~~Structured output via a simplified schema + server-side transform~~ — **superseded.** Using the Decision API directly (a calibrated probability) sidesteps the strict-mode schema problem entirely; no simplified-schema transform was needed.
+- [x] Provider failure, timeout, and any other exception map onto `NotEvaluated` (`ContentCheckNotEvaluatedReason.Error`) — never `Fail`. A cancelled request (`OperationCanceledException`) propagates instead of being reported as a verdict, matching Umbraco.AI's own Decision evaluators.
+- [x] Agent tools: `RunContentChecksTool` (`run_content_checks`) and `ListContentCheckPoliciesTool` (`list_content_check_policies`), in `Tools/`.
+- [x] **Loop discipline in the tool layer (finding G2), settled: the tool enforces a hard round cap itself.** Resolves [open question 2](overview.md). `InMemoryContentCheckAgentRoundTracker` enforces a hard `MaxRounds = 5` (process-lifetime counter, not persisted — deliberately not configurable yet). `ContentCheckAgentRoundStatus` reports the round number and cap back to the caller.
+- [ ] **Ship default rubrics** (finding K): tone-of-voice, readability, SEO value. Still a blank text box today — `RubricContentCheckConfig.Rubric` defaults to `""`, no bundled library.
+- [x] Delete [Core Contract](core-contract-spec.md)'s throwaway proving check B (`StubRubricCheck`, in `Core/Checks/Examples/`) — done. `ContentCheckConfigSchemaBuilderTests` no longer depends on it either; its one test needing a config with a non-default property initializer now uses a small test-local type instead.
 
 ## Future idea, deliberately not v1: AI-assisted rubric/rule authoring
 

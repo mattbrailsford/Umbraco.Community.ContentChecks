@@ -59,8 +59,8 @@ public class RubricContentCheckConfig
 /// <summary>
 /// The real AI-judged check (<c>Metered</c> + <c>Nondeterministic</c>): a free-text rubric judged
 /// by an Umbraco.AI profile via the (experimental) Decision API, returning a calibrated pass
-/// probability and a pass/fail verdict against a configured threshold. Replaces the throwaway
-/// <c>StubRubricCheck</c> proving check once this ships — see docs/ai-integration-spec.md.
+/// probability and a pass/fail verdict against a configured threshold. Replaced the throwaway
+/// <c>StubRubricCheck</c> proving check, since deleted — see docs/ai-integration-spec.md.
 /// </summary>
 /// <remarks>
 /// Deliberately mirrors Umbraco.AI's own <c>DecisionGuardrailEvaluator</c>/<c>DecisionJudgeGrader</c>
