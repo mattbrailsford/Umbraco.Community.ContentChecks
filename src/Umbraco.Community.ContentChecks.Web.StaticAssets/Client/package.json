@@ -8,7 +8,7 @@
         "generate-client": "node --no-warnings scripts/generate-openapi.js https://localhost:44377/umbraco/openapi/content-checks-management.json"
     },
     "dependencies": {
-        "@umbraco-cms/backoffice": "^18.0.0"
+        "@umbraco-cms/backoffice": "^18.3.1"
     },
     "devDependencies": {
         "@hey-api/openapi-ts": "^0.96.0",

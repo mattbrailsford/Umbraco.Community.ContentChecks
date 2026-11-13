@@ -16,6 +16,6 @@
         "generate-client": "npm run generate-client -w @umbraco-community/content-checks"
     },
     "devDependencies": {
-        "@umbraco-cms/backoffice": "^18.0.0"
+        "@umbraco-cms/backoffice": "^18.3.1"
     }
 }
