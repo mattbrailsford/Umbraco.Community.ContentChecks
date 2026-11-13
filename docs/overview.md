@@ -15,7 +15,7 @@ This is the mainline document — vision, naming, cross-cutting decisions, and t
 - [Deploy Integration](deploy-integration-spec.md) — `Umbraco.Community.ContentChecks.Deploy`, moving check policies (and now folders) between environments (not yet a numbered phase; §1's disk-vs-volatile decision is a recommendation pending confirmation)
 - [Guard](guard-spec.md) — per-section, per-user/role control over whether a failing rule warns or blocks (not yet a numbered phase; built and verified 2026-08-13, reconciled with Core Contract/Triggers — full CRUD, backoffice UI, EF Core persistence)
 - [Notifications](notifications-spec.md) — every notification fired across the project: policy/folder CRUD (consumed by Deploy), and the two-tier run-completion pair (consumed by Automate)
-- [Markup-Based Checking (Exploration)](markup-checks-exploration.md) — a distinct, still-open idea: checks against rendered output, not just properties
+- [Markup-Based Checking (Exploration)](markup-checks-exploration.md) — a distinct, still-open idea: checks against rendered output, not just properties. One piece of groundwork is built ahead of the rest (2026-11-13): a seam that mints a real Umbraco preview session from code, no browser needed, for the eventual default markup provider's draft-fetching
 - [Market & Ecosystem Research](research.md) — what already exists, and what it validated or ruled out
 
 ---

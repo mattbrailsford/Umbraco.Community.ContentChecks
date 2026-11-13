@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Umbraco.Cms.Core.DependencyInjection;
 using Umbraco.Community.ContentChecks.Core.Checks;
 using Umbraco.Community.ContentChecks.Core.Config;
+using Umbraco.Community.ContentChecks.Core.Markup;
 using Umbraco.Community.ContentChecks.Core.Policies;
 using Umbraco.Community.ContentChecks.Core.Policies.Elements;
 
@@ -74,6 +75,12 @@ public static class ContentChecksBuilderExtensions
         builder.Services.AddSingleton<IContentCheckResolutionService, ContentCheckResolutionService>();
         builder.Services.AddSingleton<IContentCheckEffectiveChecksService, ContentCheckEffectiveChecksService>();
         builder.Services.AddSingleton<IContentCheckEvaluationService, ContentCheckEvaluationService>();
+
+        // Groundwork for markup-based checks (docs/markup-checks-exploration.md) -- not a
+        // complete feature yet, just the preview-credential seam a markup provider's default
+        // fetch will need. See IContentCheckPreviewCredentialMinter's remarks for why it's kept
+        // behind its own registration rather than inlined wherever it's eventually consumed.
+        builder.Services.AddSingleton<IContentCheckPreviewCredentialMinter, PreviewTokenCredentialMinter>();
 
         return builder;
     }
