@@ -79,6 +79,7 @@ export type ContentCheckKind = 'Deterministic' | 'Nondeterministic';
 export type ContentCheckLocationStep = {
     propertyAlias: string;
     elementKey: string;
+    index: number;
 };
 
 export type ContentCheckNotEvaluatedPolicy = 'FailOpen' | 'FailClosed';

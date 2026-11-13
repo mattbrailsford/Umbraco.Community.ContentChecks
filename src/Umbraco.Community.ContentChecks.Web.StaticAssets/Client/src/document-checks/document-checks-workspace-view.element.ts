@@ -463,7 +463,14 @@ export class CcDocumentChecksWorkspaceViewElement extends UmbLitElement {
         const status = entry?.result.status;
         const bucket = bucketOf(status, rule.requirementLevel);
 
-        const scope = target.path.length === 0 ? "On this document" : `On ${target.contentTypeAlias}`;
+        // For a nested target, name the actual property/element chain reached to find it (e.g.
+        // "heroBlock #2 / seoSettings") rather than just its own type -- the type alone doesn't
+        // say where on the page it is, which matters most for a Cascading match sitting several
+        // blocks deep.
+        const scope =
+            target.path.length === 0
+                ? "On this document"
+                : `On ${target.path.map((step) => `${step.propertyAlias} #${step.index}`).join(" / ")}`;
         const propertyAlias = this._propertyAliasByRuleKey.get(rule.ruleKey);
         const meta = [rule.requirementLevel, propertyAlias].filter(Boolean).join(" · ");
 
@@ -508,7 +515,8 @@ export class CcDocumentChecksWorkspaceViewElement extends UmbLitElement {
         // whatever's actually being checked -- a Composition/Cascading match applies here
         // precisely because this content's own type composes or inherits that type, so naming the
         // resolved target instead would just repeat this document's own type. Falls back to the
-        // resolved target's type if the policy's own type has since been deleted.
+        // resolved target's type if the policy's own type has since been deleted. The actual
+        // nested location (for a Cascading match) is shown per-row instead, in the meta line.
         const scopeLabel = match.contentTypeName ?? target.contentTypeAlias;
         const verb = match.provenance === "Direct" ? "on" : "via";
 

@@ -112,11 +112,13 @@ internal sealed class ContentCheckResolutionService : IContentCheckResolutionSer
                 continue;
             }
 
+            var index = 0;
             foreach (var instance in source.GetElementInstances(property.RawValue))
             {
+                index++;
                 var stepPath = new List<ContentCheckLocationStep>(path)
                 {
-                    new() { PropertyAlias = property.Alias, ElementKey = instance.Key },
+                    new() { PropertyAlias = property.Alias, ElementKey = instance.Key, Index = index },
                 };
 
                 var elementType = await GetContentTypeAsync(instance.ContentTypeKey, cache);
