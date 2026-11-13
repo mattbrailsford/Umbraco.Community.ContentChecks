@@ -1,6 +1,6 @@
 # Content Checks — Markup-Based Checking (Exploration)
 
-**Status:** Exploratory. This captures the full extent of an idea, not a build-ready spec. Some things got settled along the way (marked **Settled**); most of the interesting parts are still genuinely open (marked **Open**) and are recorded as forks with their reasoning, not as decisions. Narrowing to what actually ships is a deliberate, separate, later step — nothing here should be read as "cut" or "deferred" just because it's unresolved.
+**Status:** Exploratory. This captures the full extent of an idea, not a build-ready spec. Some things got settled along the way (marked **Settled**); most of the interesting parts are still genuinely open (marked **Open**) and are recorded as forks with their reasoning, not as decisions. Narrowing to what actually ships is a deliberate, separate, later step — nothing here should be read as "cut" or "deferred" just because it's unresolved. **This is now a real, working, end-to-end feature, built and proven same-day (2026-11-13):** the preview-credential seam (§9.4), the default `IContentCheckMarkupProvider` (§9.2, §9.3), the `IContentCheck`/`IPropertyContentCheck`/`IMarkupContentCheck` contract split (§4, including a resolution-service cascading bug a pre-build design pass caught before any code existed), shared-parse caching on top of the already-shared fetch (§11), and two real markup checks, `ImageAltTextCheck` and `H1HeadingCheck` (§11/§12, items 11 and 14). URL resolution and the preview-cookie draft fetch — the two things once flagged as unverified — are both now proven against the real demo site, not just tested in isolation: see §9.3 and §9.4's own updated notes, and open question #7.
 
 **Companion to, not part of:** [Overview](overview.md) and its specs ([Core Contract](core-contract-spec.md), [Policy Resolution](policy-resolution-spec.md), [Management API & UI](management-api-ui-spec.md), [Triggers](triggers-spec.md), [AI Integration](ai-integration-spec.md)). Nothing here has been merged into those. If and when parts of this narrow down to something buildable, they get folded in explicitly, not implicitly.
 
@@ -23,12 +23,16 @@ Several real check types are fundamentally about the rendered page, not any one 
 
 A decoupled Umbraco site has no server-side rendering happening on the CMS side at all — Umbraco is a data API; something else entirely (different repo, different framework, maybe different hosting) renders the page. There is no default "ask Umbraco for the markup" that works universally. This has to be a pluggable extension point from day one, not an assumed capability with headless bolted on as an afterthought.
 
-## 4. Contract shape
+## 4. Contract shape — **Settled and built** (pre-build design pass + implementation, 2026-11-13)
 
-**Open, but converging.** `IContentCheckSnapshot` is a property bag; markup is a raw HTML string. These are different input shapes, not the same shape stretched to fit, so property checks and markup checks shouldn't share one `EvaluateAsync` signature. The shape explored:
+Checked directly against the real current source in `src/Umbraco.Community.ContentChecks.Core/Checks/` (`IContentCheck.cs`, `ContentCheckBase.cs`, `ContentCheckRunner.cs`) and `Policies/ContentCheckResolutionService.cs`, not assumed from this doc's own older sketch — the docs in this project have already gone stale twice this session (see §9.2/§9.3's history), so this pass re-verified against real code before settling anything. The user confirmed this contract has never shipped, so the brief was explicit: reshape `IContentCheck` however produces the best design, not whatever avoids a breaking change.
+
+### 4.1 Final interface/base-class shape
+
+`IContentCheckSnapshot` is a property bag; markup is a raw HTML string. These are different input shapes, not the same shape stretched to fit, so property checks and markup checks don't share one `EvaluateAsync` signature:
 
 ```csharp
-// Pure metadata — no EvaluateAsync. What every check declares about itself, regardless of shape.
+// Metadata only. No EvaluateAsync -- a bare IContentCheck can't run anything.
 public interface IContentCheck : IDiscoverable
 {
     string Alias { get; }
@@ -42,26 +46,142 @@ public interface IContentCheck : IDiscoverable
 
 public interface IPropertyContentCheck : IContentCheck
 {
-    Task<ContentCheckResult> EvaluateAsync(ContentCheckContext context, ContentCheckConfig config, CancellationToken ct);
+    Task<ContentCheckResult> EvaluateAsync(ContentCheckContext context, ContentCheckConfig config, CancellationToken cancellationToken);
 }
 
 public interface IMarkupContentCheck : IContentCheck
 {
-    Task<ContentCheckResult> EvaluateAsync(ContentCheckMarkupContext context, ContentCheckConfig config, CancellationToken ct);
+    Task<ContentCheckResult> EvaluateAsync(ContentCheckMarkupContext context, ContentCheckConfig config, CancellationToken cancellationToken);
 }
 ```
 
-This is a **mandatory branch, not an optional add-on** — a meaningfully different relationship than `IFixableContentCheck` (considered and rejected in [Core Contract](core-contract-spec.md)), which would have been additive on top of an always-runnable base. Here, `IContentCheck` alone describes something but can't run anything; you have to be one of the two children to be runnable. Anything that actually executes a check (not just lists it) has to pattern-match which one it's holding.
+This is a **mandatory branch, not an optional add-on** — a meaningfully different relationship than `IFixableContentCheck` (considered and rejected in [Core Contract](core-contract-spec.md)), which would have been additive on top of an always-runnable base. Here, `IContentCheck` alone describes something but can't run anything; you have to be one of the two children to be runnable. Anything that actually executes a check (not just lists it) has to pattern-match which one it's holding (§4.4).
 
-Base classes mirror the split, with a third, more foundational shared piece underneath both — the attribute-reading/lazy-schema/`ResolveConfig` plumbing has nothing to do with property-vs-markup either:
+Base classes mirror the split. Reading the real `ContentCheckBase<TConfig>` shows exactly what the shared, foundational piece is — it's already all in one place today, not vague:
 
 ```csharp
-internal abstract class ContentCheckMetadataBase<TConfig> : IContentCheck { /* attribute + schema + ResolveConfig */ }
-public abstract class PropertyContentCheckBase<TConfig> : ContentCheckMetadataBase<TConfig>, IPropertyContentCheck { ... }
-public abstract class MarkupContentCheckBase<TConfig> : ContentCheckMetadataBase<TConfig>, IMarkupContentCheck { ... }
+// Everything ContentCheckBase<TConfig> does today MINUS the EvaluateAsync proxy: reads
+// [ContentCheck] off the derived type, Alias/Name/Cost/Kind/ConfigType, lazy schema,
+// GetConfigSchema(), ResolveConfig(), CreateDefaultConfig(). Relocated unchanged.
+public abstract class ContentCheckMetadataBase<TConfig> : IContentCheck { /* ... */ }
+
+// What ContentCheckBase<TConfig> is renamed to -- see the naming decision below.
+public abstract class PropertyContentCheckBase<TConfig>
+    : ContentCheckMetadataBase<TConfig>, IPropertyContentCheck
+{
+    // Exactly today's EvaluateAsync(ContentCheckContext, ContentCheckConfig, ct) proxy
+    // + the abstract typed overload, unchanged.
+}
+
+public abstract class MarkupContentCheckBase<TConfig>
+    : ContentCheckMetadataBase<TConfig>, IMarkupContentCheck
+{
+    public Task<ContentCheckResult> EvaluateAsync(
+        ContentCheckMarkupContext context, ContentCheckConfig config, CancellationToken cancellationToken)
+    {
+        if (!context.Markup.Success)
+        {
+            return Task.FromResult(new ContentCheckResult
+            {
+                Status = ContentCheckStatus.NotEvaluated,
+                Message = context.Markup.FailureReason ?? "The page could not be fetched.",
+                NotEvaluatedReason = ContentCheckNotEvaluatedReason.Error,
+            });
+        }
+
+        return EvaluateAsync(context, ResolveConfig(config) ?? CreateDefaultConfig(), cancellationToken);
+    }
+
+    protected abstract Task<ContentCheckResult> EvaluateAsync(
+        ContentCheckMarkupContext context, TConfig config, CancellationToken cancellationToken);
+}
 ```
 
-**Open:** exact members of `ContentCheckMarkupContext` beyond "the HTML" — see §7.
+**The fetch-failure short-circuit lives in `MarkupContentCheckBase`, not in every check.** Mirrors the existing philosophy exactly: `ContentCheckBase<TConfig>`'s whole reason for existing is to stop every check repeating "resolve config, default if missing" ([Core Contract](core-contract-spec.md) §2's note on this exact refactor). A markup check having to repeat "did the fetch even succeed?" at the top of every `EvaluateAsync` is the same category of boilerplate. Centralizing it means a real markup check's body can assume valid HTML, the same way a property check assumes a resolved, defaulted config.
+
+**Naming — rename `ContentCheckBase<TConfig>` to `PropertyContentCheckBase<TConfig>`.** Not required (nothing ships yet, so no forced migration either way), but recommended: with a markup branch existing, `ContentCheckBase` no longer means "the base for any check" — `ContentCheckMetadataBase` does. Keeping the old name on the property branch would read as if it's still the universal one. Touches 3 files, each a one-word change — see §4.6.
+
+### 4.2 Who calls `IContentCheckMarkupProvider`, and when
+
+**Decision: `ContentCheckRunner` calls `IContentCheckMarkupProvider.GetMarkupAsync` directly — individual markup checks never call it.** This is the answer to §11's long-flagged "fetch markup once per run, share across checks" optimization, and it falls out cleanly from how `ContentCheckRunner.RunAsync` is already structured:
+
+- `RunAsync` already distinguishes `Cost.Free` (sequential, always runs) from `Cost.Metered` (concurrent, short-circuited if a mandatory Free rule failed). A markup fetch is exactly the same shape of cost as any other `Metered` check: expensive, worth skipping if short-circuited.
+- Add one field to `RunAsync`: `Lazy<Task<ContentCheckMarkupResult>>? markupFetch`, created only if the request actually contains a markup-check rule, built from `IContentCheckMarkupProvider.GetMarkupAsync(new ContentCheckMarkupRequest { ContentKey = request.Content.Key, Culture = request.Culture, Segment = request.Segment }, cancellationToken)`.
+- Thread it into the per-rule execution path. The fetch is only triggered (`markupFetch.Value` accessed) when the rule about to run is an `IMarkupContentCheck` — never unconditionally.
+- **This preserves the existing short-circuit guarantee for free.** If a mandatory `Free` rule fails, metered rules are never run at all — so a `Metered`-cost markup check's lazy fetch is simply never triggered, exactly like any other skipped `Metered` check today. No special-casing needed; this is why the fetch must be triggered *inside* the per-rule path, not eagerly at the top of `RunAsync`.
+- **`Lazy<Task<T>>`'s default thread-safety mode is the right primitive for the concurrent `Metered` path:** if two markup-check rules race to access `markupFetch.Value` concurrently, only one real fetch happens; both get the same in-flight `Task`.
+
+**New constructor dependency: `ContentCheckRunner` needs `IContentCheckMarkupProvider` injected.** Already registered as a singleton (added alongside the provider itself) — this is a wiring addition, not a new registration. Every existing `ContentCheckRunnerTests` setup needs a `Mock<IContentCheckMarkupProvider>` added — mechanical, not risky, but real; see §4.6.
+
+**Cross-run result caching already works correctly for a markup check with zero changes.** The runner's existing cache key (content stamp + content key + culture/segment + check alias + assembly version + config JSON) is available identically for a markup check, and a cache *hit* returns before ever reaching the markup-check branch — so an unchanged page's markup check doesn't even trigger a fetch on a re-run. The within-one-run `Lazy` sharing above is a *different, complementary* layer: it only matters when at least one markup rule misses the cross-run cache and more than one markup rule needs the same HTML in that run.
+
+**Convention, not enforced:** a markup check should realistically always declare `Cost.Metered` (a network fetch is never actually free), but nothing forces this at the type level — consistent with this project's existing avoidance of compile-time constraints that don't earn their keep (see [Core Contract](core-contract-spec.md)'s note on why `ResolveConfig` avoids a `where TConfig : new()` constraint). Worth a doc comment on `IMarkupContentCheck`, not a runtime check.
+
+### 4.3 `ContentCheckMarkupContext` shape
+
+```csharp
+public sealed class ContentCheckMarkupContext
+{
+    public required IContentCheckSnapshot Content { get; init; }
+    public string? Culture { get; init; }
+    public string? Segment { get; init; }
+    public required ContentCheckMarkupResult Markup { get; init; }
+}
+```
+
+Mirrors `ContentCheckContext` (`Content`/`Culture`/`Segment`) exactly, with `Markup` added to carry the already-fetched `ContentCheckMarkupResult` (§9.2's `Html`/`Url`/`StatusCode`/`Success`/`FailureReason`, unchanged). Giving a markup check `Content` too (not just the raw HTML) means it can report the content's identity the same way a property check can, without parsing it back out of the fetched `Url`.
+
+**Dependency on §4.5 below:** this only works correctly because a markup-check rule will only ever be evaluated against the *root* `IContentCheckSnapshot`, never a nested element instance's — see §4.5's resolution-service fix, which is a prerequisite, not an independent nice-to-have. Without that fix, `Content.Key` here could be a nested block's key, which has no URL of its own and would make the markup request nonsensical.
+
+### 4.4 `ContentCheckRunner` dispatch
+
+```csharp
+result = rule.Check switch
+{
+    IMarkupContentCheck markupCheck => await EvaluateMarkupRuleAsync(markupCheck, rule.Config, request, markupFetch!, cancellationToken),
+    IPropertyContentCheck propertyCheck => await propertyCheck.EvaluateAsync(
+        new ContentCheckContext { Content = request.Content, Culture = request.Culture, Segment = request.Segment },
+        rule.Config, cancellationToken),
+    _ => throw new InvalidOperationException($"Check '{rule.Check.Alias}' is neither a property nor a markup check."),
+};
+```
+
+The `_ =>` branch is unreachable in practice (every real check goes through one of the two base classes), but earns its keep the same way `ContentCheckBase<TConfig>`'s own attribute-presence check does — a clear failure instead of a silent no-op if someone ever implements `IContentCheck` directly, which its own docs already say nobody does.
+
+### 4.5 Policy Resolution — the one real bug this design pass caught, now fixed
+
+**Finding, not assumed:** `ContentCheckResolutionService`'s rule resolution resolves *every* rule in a policy by alias with **no filtering by check kind at all**, and the method building policy matches calls it identically whether building the root match (no cascading) or a nested element match (cascading). Today, if a policy contains both a property rule and a (not-yet-existing) markup rule, and that policy also matches a nested element type via cascading, the markup rule would be resolved as a *cascading* match at the nested location — directly contradicting §5's already-settled "whole-page-only, no cascading" decision. This isn't hypothetical once `IMarkupContentCheck` exists; it's the actual behavior of the unmodified resolver, caught by reading the real code before writing any of the new contract.
+
+**Fix: the policy-match builder filters out markup-check rules whenever it's building a cascading match.** A minimal, local change — `cascading` is already a parameter at exactly that call site. No separate resolution path is needed for markup checks; they go through the exact same resolution, they just never survive into a cascading match. A markup rule in a policy that matches the *root* content type still resolves normally, which is the only place a markup check should ever appear per §4.2/§4.3's design.
+
+**Built and proven as a real regression guard, not just asserted:** `ContentCheckResolutionServiceTests.ResolveAsync_CascadingMatch_ExcludesMarkupCheckRules_ButKeepsPropertyCheckRules` was run against the resolver *before* this fix was applied, confirmed to fail exactly as predicted, then the fix was restored and the suite re-run green. A sibling test confirms a markup rule still resolves normally at the root.
+
+**Secondary, lower-priority finding — the Applicable Checks display.** [Management API & UI](management-api-ui-spec.md)'s "Applicable Checks" service works at the whole-*policy* level for the backoffice display and never resolves individual rules to check instances, so it can't apply the same per-rule filter cheaply. A policy containing both a property rule and a markup rule, matched via cascading, would still display as applying at that nested location — including, misleadingly, its markup rule. This is a display-only inaccuracy (nothing actually runs there, per the real fix above), not a correctness bug, and is a Management API/UI concern to pick up when the UI work for markup checks happens, not a blocker for the contract split itself.
+
+### 4.6 Migration of the two existing checks — mechanical
+
+| File | Change |
+|---|---|
+| `src/Umbraco.Community.ContentChecks.Core/Checks/ContentCheckBase.cs` | Split into `ContentCheckMetadataBase<TConfig>` (everything except the `EvaluateAsync` proxy) + `PropertyContentCheckBase<TConfig>` (the proxy + abstract typed overload), per §4.1. |
+| `src/Umbraco.Community.ContentChecks.Core/Checks/Examples/RequiredPropertyCheck.cs` | `: ContentCheckBase<RequiredPropertyCheckConfig>` → `: PropertyContentCheckBase<RequiredPropertyCheckConfig>`. Nothing else changes — its `EvaluateAsync` override signature is identical. |
+| `src/Umbraco.Community.ContentChecks.AI/Checks/RubricContentCheck.cs` | Same one-word rename. Nothing else changes. |
+| `src/Umbraco.Community.ContentChecks.Core/Checks/ContentCheckCollection.cs` | None — already keyed off `Alias`, available on the metadata-only interface. |
+| `src/Umbraco.Community.ContentChecks.Core/Configuration/ContentChecksBuilderExtensions.cs` | None for discovery (attribute-based discovery still matches both branches via the shared metadata interface) — only the new `ContentCheckRunner` constructor wiring from §4.2. |
+| `src/Umbraco.Community.ContentChecks.Core/Policies/ContentCheckResolutionService.cs` | The policy-match fix from §4.5. |
+| `src/Umbraco.Community.ContentChecks.Core/Checks/ContentCheckRunner.cs` | Constructor gains `IContentCheckMarkupProvider`; the run loop gains the lazy-fetch threading and dispatch switch from §4.2/§4.4. |
+| `tests/Umbraco.Test.ContentChecks.Unit/Checks/FakeContentCheck.cs` | `: IContentCheck` → `: IPropertyContentCheck`. Everything else in the file is already exactly that shape. |
+| `tests/Umbraco.Test.ContentChecks.Unit/Checks/ContentCheckRunnerTests.cs` | Every test's setup needs a `Mock<IContentCheckMarkupProvider>` passed to the runner's constructor. A new `FakeMarkupContentCheck` test double (mirroring `FakeContentCheck`) is also needed to exercise the new dispatch branch and the lazy-fetch-sharing behavior specifically. |
+| `tests/Umbraco.Test.ContentChecks.Unit/Checks/Examples/RequiredPropertyCheckTests.cs`, `RubricContentCheckTests.cs` | Confirmed no change needed — their test-double infrastructure constructs `IContentCheckInfrastructure` only, unaffected by the base-class split. |
+
+No database/persistence migration — `IContentCheck` and its config schema are code-registered, never persisted.
+
+### 4.7 Everything else this split touches — checked, not assumed
+
+- **Guard ([Guard](guard-spec.md)) and Triggers ([Triggers](triggers-spec.md)): confirmed unaffected.** Neither references `IContentCheck` at all — both operate purely on `ContentCheckReportEntry`/`RequirementLevel`/`ContentCheckStatus`. This split doesn't touch either.
+- **`ContentCheckEvaluationService`: confirmed unaffected, zero changes.** It builds one run request per target from that target's resolved policy matches and calls the unchanged runner per target. Because §4.5's fix means a markup rule only ever survives into the *root* target's matches, it rides along in that one request's rule list exactly like any other rule — "whole page only" falls out of §4.5's fix with no changes needed here.
+- **`ContentCheckResult`/`ContentCheckTarget`: confirmed zero changes**, per §6's already-settled decision.
+- **Management API: confirmed zero *required* changes.** The check-type response model is built entirely from the metadata surface (`Alias`/`Name`/`Description`/`Cost`/`Kind`/`ConfigSchema`), all of which stay on the thinned `IContentCheck`.
+- **Open, recommended but not required:** the policy editor's rule picker currently has no way to know "is this check markup-based" to, say, grey it out when authoring a policy on a nested element type (where §4.5 means a markup rule would be accepted but silently never run there). A small flag on the check-type response model would let the UI do this, but it's a Management API/UI-layer decision belonging to whenever that UI work happens, not a blocker for building the contract split itself.
 
 ## 5. Granularity — **Settled**
 
@@ -100,61 +220,92 @@ A single, DI-replaceable `IContentCheckMarkupProvider` service — not a discove
 
 **Named but not pursued:** a discovered collection, each entry declaring what it can handle (mirroring the element-source pattern, keyed by property-editor alias in that case), would serve a site mid-migration (part legacy Razor, part new headless) or a large site with genuinely different frontends per section. More flexible, costs more to build, for a rarer case. Not chosen against — just not the default.
 
-### 9.2 Request/response shape — **Open, sketched**
+### 9.2 Request/response shape — **Settled and built**
 
-The request probably does **not** need the full `IContentCheckSnapshot` abstraction — that interface exists for reading properties, and a markup provider isn't reading properties, just needs enough identity to know what to render (content Key, maybe a pre-resolved URL) plus culture/segment.
+Built almost exactly as sketched — a decent signal the original sketch was already in the right place. No full `IContentCheckSnapshot`: a markup provider isn't reading properties, it just needs enough identity to know what to fetch.
 
 ```csharp
 public sealed class ContentCheckMarkupRequest
 {
-    // Key + culture/segment at minimum; exact shape still open — see also §7 (no Preview flag needed).
+    public required Guid ContentKey { get; init; }
+    public string? Culture { get; init; }
+    public string? Segment { get; init; }
 }
 
 public sealed class ContentCheckMarkupResult
 {
+    public required bool Success { get; init; }
     public string? Html { get; init; }
     public string? Url { get; init; }
     public int? StatusCode { get; init; }
-    public bool Success { get; init; }
     public string? FailureReason { get; init; }
 }
 ```
 
-Provider failure (site down, timeout, no provider configured) maps cleanly onto the **existing** `ContentCheckStatus.NotEvaluated` / `ContentCheckNotEvaluatedReason.Error` machinery already in [Core Contract](core-contract-spec.md) — no new mechanism needed. A more specific reason code (e.g. distinguishing "markup unavailable" from a generic error) is a possible, not-decided future refinement.
+Provider failure (no route, fetch error, non-2xx response) maps cleanly onto the **existing** `ContentCheckStatus.NotEvaluated` / `ContentCheckNotEvaluatedReason.Error` machinery already in [Core Contract](core-contract-spec.md) — no new mechanism needed, and no more specific reason code was needed in practice. Both types live in `Umbraco.Community.ContentChecks.Core.Markup`.
 
-### 9.3 Implementation approach for the built-in default — **Open, two real options, not converging yet**
+### 9.3 Implementation approach for the built-in default — **Settled and built: Option A**
 
-**Option A — HTTP round-trip.** The provider resolves the item's URL and makes an HTTP GET to it. Simple, robust, indifferent to Umbraco's internal rendering plumbing. Real costs: needs to reliably know its own base URL (awkward behind load balancers — see §10), needs to somehow carry preview auth over the request (Umbraco preview is normally tied to a signed-in backoffice user's cookie, not something a background process naturally has), needs real timeout/circuit-breaking so a slow render doesn't hang a check run, and has a faint self-referential-request oddity (a site calling itself over the network).
+**Option A — HTTP round-trip, built as `HttpContentCheckMarkupProvider`.** Resolves the item's URL via `IPublishedUrlProvider.GetUrl` (wrapped in `IUmbracoContextFactory.EnsureUmbracoContext()`, since this runs from a background check run, not a live request — there's no ambient `UmbracoContext` otherwise), mints a preview credential via §9.4's seam for the super user, and does a plain `HttpClient` GET with the credential's cookie(s) attached. A non-2xx response, a fetch exception, or an unroutable URL (`Constants.Routing.Unroutable`) all map to `Success = false` with a `FailureReason`; a cancelled fetch propagates rather than being reported as a failure (mirrors `RubricContentCheck`'s same choice for a cancelled AI judgment). Unit-tested against a mocked `HttpMessageHandler` — url-unroutable, credential-mint-failure, success, non-2xx, fetch-exception, and cancellation are each their own test.
 
-**Option B — in-process rendering** via Umbraco's own pipeline directly. No network hop, and it's easier to construct the right preview context *deliberately* rather than fake it over HTTP. Costs: ties much more tightly to Umbraco's internal rendering APIs (route values, controller invocation), which are more fragile and version-sensitive than a plain HTTP call.
+**Option B — in-process rendering — dropped, not just deferred.** Would tie tightly to Umbraco's internal rendering APIs (route values, controller invocation) for no real benefit over Option A, and doesn't even apply to a headless frontend (there's nothing in Umbraco's own pipeline to render in-process when a separate app owns rendering) — so it was never going to be *the* general answer, only a possible optimization for one specific setup. Not worth the fragility for that.
+
+**Known real costs, inherited from Option A's original write-up, not yet mitigated:** no base-URL override for load-balanced/reverse-proxied environments yet (§10, still open — the current build just calls Umbraco's own URL resolution with no override point), and no explicit fetch timeout/circuit-breaking (`HttpClient`'s default timeout applies; a slow render can still hold up a check run longer than ideal).
+
+**Proven against a real running site, 2026-11-13** (demo site, Umbraco 18.3.1, Clean starter kit): created a real published Home page with two `<img>` tags (one with alt text, one without), configured a real policy with the `ImageAltTextCheck` rule through the actual backoffice UI, and ran it. Result: `1 of 2 image(s) are missing alt text: https://via.placeholder.com/150` — the full chain (policy resolution → runner → provider → HTTP fetch → HTML parse → check → UI) works end-to-end against a real site, not just in unit/integration tests with mocked pieces.
+
+**One real precondition this surfaced, not previously documented anywhere:** the fetch only works if the site's application URL is explicitly configured (`Umbraco:CMS:WebRouting:UmbracoApplicationUrl`). Without it, `IPublishedUrlProvider.GetUrl` falls back to a default that resolves to `localhost:80` outside of a real incoming request (a background check run has no ambient request to auto-detect from), and the outbound fetch fails with `Connection refused (localhost:80)`. Fixed for this repo's demo site by adding the setting to `scripts/templates/appsettings.Local.json` (copied in by both `install-demo-site.sh`/`.ps1`), not by documentation alone — every freshly-generated demo site now gets it automatically. See §10, which this directly resolves half of.
+
+**Also proven, 2026-11-13:** fetching a genuinely *unpublished draft* (exercising §9.4's minted preview cookie over this same real HTTP path) — see open question #7 for the full account. The original smoke test above used a published page; this follow-up confirmed the preview-credential round trip itself against a real, unpublished edit.
 
 **Shelved idea — configurable URL template.** A single template (`https://.../preview?key={key}&culture={culture}`) could plausibly cover both a traditional site and many headless setups (point it at the frontend's own render endpoint instead) with one mechanism, leaving a fully custom `IContentCheckMarkupProvider` only for the genuinely bespoke cases (non-HTTP transport, GraphQL, custom auth). **Explicitly left out for now, for a real reason, not an excuse:** a flat template can't know which domain to use for a given content item without replicating Umbraco's own domain resolution — Umbraco's Culture and Hostnames feature can map different domains to different content roots or cultures within one instance, and a template string alone can't pick the right one. Recorded here so it isn't silently forgotten if domain-aware templating becomes worth the effort later.
 
-### 9.4 Test stint: hook into Umbraco's existing preview functionality
+### 9.4 Preview credential seam — **Settled and built, for v18**
 
-Proposed next step, not yet done: investigate whether Umbraco's *native* preview-mode rendering — the same thing that runs when a backoffice user clicks Preview — can be invoked programmatically for a known, already-*saved* draft (a normal, persisted-but-unpublished Umbraco draft). If viable, this covers the AI-generation-loop's baseline case (agent saves a draft the ordinary way, checks it before publish) without needing any of the harder machinery described next.
+Proven empirically (2026-11-13), not just theorized: Umbraco 18's front-end preview mode can be entered entirely from code, for a known, already-*saved* draft, with no real browser session or interactive editor. This covers the AI-generation-loop's baseline case (agent saves a draft the ordinary way, checks it before publish) without needing any of the harder machinery described below.
 
-**Relationship to the sibling Draft Sets project, named precisely because the two problems are not the same size:** Draft Sets already investigated adjacent territory — decorating `IPublishedContentCache`, a `PublishedContentWrapped` overlay, an ambient accessor mirroring `HybridAccessorBase` — but that was for rendering **in-memory, not-yet-persisted** edits (content captured ambiently from an open Draft Set that was never saved to the DB), which they found clean only for value edits and blocked on structural changes. The markup provider's baseline case is narrower: a real, saved draft that Umbraco's own preview mechanism should already know how to render today, no overlay needed. Reconciling with actual in-memory Draft Set edits (the harder problem) stays [Overview](overview.md)'s Phase 7 concern, not something the test stint needs to solve first.
+**The mechanism (Umbraco 18.x):** preview is gated by a single cookie, `UMB_PREVIEW`, whose value is an opaque token built from `{userKey}|{securityStamp}`. `Umbraco.Cms.Core.Preview.IPreviewTokenGenerator.GenerateTokenAsync(Guid userKey)` mints that token for any user key, synchronously and with no `HttpContext` — a background process can call it directly. `PreviewAuthenticationMiddleware` later verifies the same cookie via `VerifyAsync` and puts the request into preview mode. The interface is marked `[Obsolete("...will be removed in Umbraco 19.")]`, but fully functional for this branch's whole lifetime (this repo never upgrades `v18/dev` into v19 — see [Overview](overview.md) §1's branch model).
 
-## 10. URL/domain resolution — **Open fork**
+**Built:** `Umbraco.Community.ContentChecks.Core.Markup.IContentCheckPreviewCredentialMinter`, with a v18 implementation (`PreviewTokenCredentialMinter`) wrapping `IPreviewTokenGenerator`. Takes a "judge" user key, returns the cookie(s) to attach to the markup provider's outbound fetch — deliberately its own seam rather than inlined into the (not yet built) provider, because the real mechanism is different and heavier on Umbraco 19 (below). Proven against a real, EF-backed seeded user and the real `IPreviewTokenGenerator`: `PreviewTokenCredentialMinterIntegrationTests` mints a token for `Constants.Security.SuperUserKey` and confirms Umbraco's own `VerifyAsync` accepts it and resolves back to the same user — not a mock standing in for Umbraco's own verification.
+
+**Umbraco 19 (checked against 19.0.0-rc1, not yet built here):** `IPreviewTokenGenerator` is gone entirely. `PreviewAuthenticationMiddleware` instead re-authenticates via the real `"UmbracoBackOffice"` cookie-auth scheme (`context.AuthenticateAsync(...)`), and a new `IPreviewAccessEvaluator.CanPreviewDocument` check means the chosen judge identity must actually have browse/start-node permission over the content being checked, or the request silently falls back to the published version instead of warning. The headless-mintable primitive still exists though: `ICoreBackOfficeSignInManager.CreateUserPrincipalAsync(Guid userKey)` builds the same claims principal as before — the only change is the last step, a real `HttpContext.SignInAsync("UmbracoBackOffice", principal)` instead of a disposable token. **Recommendation for when a `v19/dev` branch exists:** give the judge user an Admin-group account so the permission check always passes regardless of which node is checked, and implement a second `IContentCheckPreviewCredentialMinter` behind the same interface — the seam above exists specifically so this is a one-file swap, not a provider redesign.
+
+**Relationship to the sibling Draft Sets project, named precisely because the two problems are not the same size:** Draft Sets already investigated adjacent territory — decorating `IPublishedContentCache`, a `PublishedContentWrapped` overlay, an ambient accessor mirroring `HybridAccessorBase` — but that was for rendering **in-memory, not-yet-persisted** edits (content captured ambiently from an open Draft Set that was never saved to the DB), which they found clean only for value edits and blocked on structural changes. The markup provider's baseline case is narrower: a real, saved draft that Umbraco's own preview mechanism already knows how to render, no overlay needed. Reconciling with actual in-memory Draft Set edits (the harder problem) stays [Overview](overview.md)'s Phase 7 concern, not something this seam needs to solve.
+
+**Proven, 2026-11-13** (see open question #7 for the full account): the minted cookie, attached to a real outbound HTTP request against the real demo site, does render the draft's Razor view end-to-end. A real, unpublished draft edit (a third `<img>` added to Home, saved but not published) was picked up by a markup check's fetch, while an unauthenticated `curl` against the same URL confirmed the published page was unaffected. The earlier throwaway spike's 404 was indeed just that spike's incomplete host setup, not a real limitation.
+
+## 10. URL/domain resolution — **Open fork; not yet built**
+
+The current `HttpContentCheckMarkupProvider` (§9.3) calls `IPublishedUrlProvider.GetUrl` directly with no override point at all — fine for a normal single-domain site, but doesn't yet solve the problem below.
 
 For Option A (HTTP round-trip) specifically: support an explicit override setting for load-balanced/reverse-proxied environments where the site can't reliably auto-detect its own public URL from the current request, falling back to best-guess otherwise.
 
-**To confirm before building:** Umbraco Core likely already has an equivalent setting/service for exactly this problem (an application-URL override with its own fallback logic), used internally for things like building absolute links. Not verified against current Umbraco source in this conversation — needs checking when this actually gets built, not asserted as fact now.
+**Confirmed, 2026-11-13 (empirically, via the §9.3 smoke test):** Umbraco Core does already have exactly this — `Umbraco:CMS:WebRouting:UmbracoApplicationUrl` — and `IPublishedUrlProvider.GetUrl` uses it. Without it set, URL resolution outside a real request (which is what a background check run always is) falls back to `localhost:80`, breaking every markup fetch. This repo's demo site now sets it via `scripts/templates/appsettings.Local.json`, copied in by the install scripts.
 
-**The fork, unresolved:** reuse Umbraco's existing setting/service directly (zero new config), or define a Content Checks-specific override that falls back to Umbraco's setting when unset. The second buys an escape hatch for wanting check-fetching to hit a different address than user-facing links do (an internal network address, say) without forcing redundant configuration for the common case where one URL is fine for both purposes.
+**The fork, still open regardless:** reuse Umbraco's existing setting directly (zero new config, confirmed workable for the common single-domain case above), or additionally define a Content Checks-specific override that falls back to Umbraco's setting when unset. The second buys an escape hatch for wanting check-fetching to hit a different address than user-facing links do (an internal network address, say) without forcing redundant configuration for the common case. Not needed yet — nothing built so far has required it — but not ruled out either.
 
 ## 11. Secondary considerations, named but not developed
 
-- **Fetch-level caching within one run.** If several markup checks run against the same page in one check run, fetching the markup once and sharing it is an obvious optimization. Distinct from [Core Contract](core-contract-spec.md)'s result-cache — that's about not re-running a check whose *verdict* would be unchanged; this is about not re-fetching the same *raw markup* multiple times in one run.
+- ~~**Fetch-level caching within one run.**~~ — **resolved, see §4.2.** The runner fetches markup once per run (lazily, only if a markup rule actually executes) and shares it across every markup check in that run, distinct from [Core Contract](core-contract-spec.md)'s cross-run result-cache.
+- ~~**Parse-level caching within one run.**~~ — **resolved, same day (2026-11-13), built once a second real motivation showed up** (several structural markup checks were about to exist). `ContentCheckMarkupContext.Document` is a `Lazy<Task<HtmlDocument>>`, built by the runner alongside the raw fetch above and shared the same way — two structural markup checks in the same run parse the fetched HTML once between them, not once each. Exposed via `context.GetDocumentAsync()`; a check that never calls it (a raw-text or AI-judged check) never pays the parse cost. Proven with a test asserting two markup rules in one run see the exact same `HtmlDocument` instance (`ReferenceEquals`), not just equal content.
 
 ## 12. Open questions, consolidated
 
-1. Exact shape of `ContentCheckMarkupContext` / `ContentCheckMarkupRequest` beyond content identity + culture/segment (§4, §9.2).
-2. HTTP round-trip vs in-process rendering vs (later, maybe) a domain-aware template, for the built-in default provider (§9.3).
-3. Whether to reuse Umbraco's own application-URL setting directly or define a Content Checks-specific override with fallback (§10).
+1. ~~Exact shape of `ContentCheckMarkupContext` / `ContentCheckMarkupRequest`~~ — **resolved and built, see §9.2 and §4.3.**
+2. ~~HTTP round-trip vs in-process rendering~~ — **resolved: Option A (HTTP), built as `HttpContentCheckMarkupProvider`, see §9.3.** Option B dropped outright, not deferred. The domain-aware-template idea from §9.3's original write-up remains shelved, unaffected by this.
+3. ~~Whether to reuse Umbraco's own application-URL setting directly or define a Content Checks-specific override with fallback~~ — **confirmed workable, 2026-11-13, see §10:** Umbraco's own `WebRouting:UmbracoApplicationUrl` setting is exactly the right lever and the built provider already benefits from it with no code changes needed. Still open: whether a Content Checks-specific override/fallback is ever worth adding on top — not needed yet.
 4. Whether the single-provider registration shape (§9.1) ever needs to become a discovered collection — revisit only if a real multi-frontend/migration case shows up.
-5. Whether provider failure ever needs a more specific `NotEvaluatedReason` than the existing generic `Error` (§9.2).
+5. Whether provider failure ever needs a more specific `NotEvaluatedReason` than the existing generic `Error` (§9.2) — not needed in practice; `FailureReason`'s free text has covered every case built so far.
+6. ~~How to get a preview-mode render for an already-saved draft with no real editor session~~ — **resolved and built for v18, see §9.4.** Who configures which backoffice user acts as "the judge" is also now settled, pragmatically rather than via a new setting: the built provider hard-codes `Constants.Security.SuperUserKey`, see §9.3's remarks on `HttpContentCheckMarkupProvider`. Revisit only once something else in the project needs user-configurable settings too.
+7. ~~Whether the minted preview cookie actually renders a draft's Razor view end-to-end over a real HTTP fetch~~ — **resolved and proven, 2026-11-13.** Edited the real demo site's Home page to add a third `<img>` (distinct src, `?draft=1`), saved **without publishing** (confirmed "Published (pending changes)" on the Info tab), and independently verified via `curl` with no cookie that the live published page still served only the original two images. Ran the Image Alt Text check: it reported "1 of **3** image(s) are missing alt text" — it saw the draft's three images, not the published two. This is airtight: the only way the check's fetch could see the third image is if the minted preview cookie genuinely put Umbraco's own rendering pipeline into preview mode for that request. The full preview-credential seam (§9.4) is now proven end-to-end against a real site, not just against `IPreviewTokenGenerator.VerifyAsync` in-process.
+13. New real finding, 2026-11-13, not previously anywhere in this doc because it's a backoffice-permissions issue, not a markup-checking one: the Content Checks section (a top-level backoffice section, not a Settings sub-tree) needs to be explicitly granted to a user group before its UI appears at all — a fresh Administrators group does **not** get it automatically just by installing the package. Confirmed via the same smoke test: the whole Checks UI was invisible until "Checks" was added under Users → User Groups → Administrators → Sections. Worth a line in end-user install docs once those exist; not acted on further here since it's standard Umbraco user-group behavior, not something this package should (or easily could) grant itself.
+8. ~~Exact shape of the `IContentCheck`/`IPropertyContentCheck`/`IMarkupContentCheck` split, who calls the markup provider, and how Policy Resolution handles a markup rule~~ — **resolved and built, 2026-11-13, see §4.** A real bug was caught in the process and fixed: without §4.5's fix, a markup rule would wrongly resolve as a cascading match into nested elements — proven with a test that fails without the fix and passes with it.
+9. The policy editor's rule picker has no way to show "this check only applies to the whole page" (§4.7) — open, Management API/UI concern, not a blocker.
+10. The Applicable Checks display would misleadingly show a markup rule as applying at a cascaded nested location, even though it would never actually run there (§4.5's secondary finding) — open, same UI-layer bucket as #9.
+11. ~~No real `IMarkupContentCheck` exists anywhere in this repo.~~ — **resolved, 2026-11-13: `ImageAltTextCheck`** (`Core/Markup/Checks/`), the first. Fails when the rendered page has an `<img>` with no `alt` attribute at all (`alt=""` is the standards-correct decorative-image marker, so it's lenient by default; an opt-in `RequireNonEmptyAltText` config flag makes it strict). Uses HtmlAgilityPack (already a transitive Umbraco dependency, now a direct one) via the shared-parse mechanism above. The full chain — provider → runner → resolution → contract → a real check — is now exercised end-to-end, not just tested in isolation piece by piece.
+12. HtmlAgilityPack is likely to be the common tool most future structural markup checks reach for, now that it's a direct Core dependency and the shared-parse mechanism exists for it specifically. Worth naming if a check ever needs something HtmlAgilityPack's XPath-based navigation doesn't do well (real CSS selectors, for instance) — not needed yet, flagged so it isn't assumed settled for every future case.
+14. **Second real `IMarkupContentCheck`, 2026-11-13: `H1HeadingCheck`** (`Core/Markup/Checks/`). Fails when the rendered page doesn't have exactly one `<h1>` (zero or more than one both fail by default; an opt-in `AllowMultipleH1` config flag permits more than one for templates that intentionally render several). Proves the `ImageAltTextCheck` pattern generalizes rather than being a one-off — same base class, same shared-parse mechanism, no new infrastructure. Smoke-tested against the real demo site's Home page (which genuinely has one `<h1>`, confirmed independently via `curl`): correctly reported Pass.
+15. **Real gotcha caught while building `H1HeadingCheck`, not previously documented:** the backoffice's check-config field descriptions (`ContentCheckField.Description`) render as HTML in the rule-config modal, not as plain escaped text — intentional elsewhere (lets a description use emphasis or links), but it means a description that mentions an HTML tag name in angle brackets (e.g. literally writing `<h1>`) gets parsed as a real tag, silently eating the rest of the text into a giant heading instead of showing as words. Fixed by rewording the description to avoid raw angle brackets ("H1 heading" instead of "`<h1>`"), not by patching the renderer. Worth remembering for any future check whose config needs to reference an HTML tag by name.
 
 ## 13. What this thread reused from Core Contract, unchanged
 

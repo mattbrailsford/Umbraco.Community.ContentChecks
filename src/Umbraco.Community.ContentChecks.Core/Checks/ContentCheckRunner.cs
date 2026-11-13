@@ -1,5 +1,7 @@
 using System.Diagnostics;
+using HtmlAgilityPack;
 using Umbraco.Cms.Core.Events;
+using Umbraco.Community.ContentChecks.Core.Markup;
 
 namespace Umbraco.Community.ContentChecks.Core.Checks;
 
@@ -26,16 +28,19 @@ internal sealed class ContentCheckRunner : IContentCheckRunner
 
     private readonly IContentCheckResultCache _cache;
     private readonly IEventAggregator _eventAggregator;
+    private readonly IContentCheckMarkupProvider _markupProvider;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ContentCheckRunner"/> class.
     /// </summary>
     /// <param name="cache">The result cache.</param>
     /// <param name="eventAggregator">Publishes <see cref="ContentCheckReportCompletedNotification"/> after each run.</param>
-    public ContentCheckRunner(IContentCheckResultCache cache, IEventAggregator eventAggregator)
+    /// <param name="markupProvider">Fetches markup for any <see cref="IMarkupContentCheck"/> rule — see docs/markup-checks-exploration.md §4.2.</param>
+    public ContentCheckRunner(IContentCheckResultCache cache, IEventAggregator eventAggregator, IContentCheckMarkupProvider markupProvider)
     {
         _cache = cache;
         _eventAggregator = eventAggregator;
+        _markupProvider = markupProvider;
     }
 
     /// <inheritdoc />
@@ -44,11 +49,43 @@ internal sealed class ContentCheckRunner : IContentCheckRunner
         var freeRules = request.Rules.Where(r => r.Check.Cost == ContentCheckCost.Free).ToList();
         var meteredRules = request.Rules.Where(r => r.Check.Cost == ContentCheckCost.Metered).ToList();
 
+        // Fetched at most once per run, lazily -- only triggered the first time a rule that's
+        // actually an IMarkupContentCheck runs (never eagerly here), and shared by every markup
+        // rule in this run via Lazy<Task<T>>'s own thread-safe caching. A page with no markup
+        // rules never fetches at all; a markup rule skipped by the mandatory-Free-failure
+        // short-circuit below never triggers it either (docs/markup-checks-exploration.md §4.2).
+        var markupFetch = request.Rules.Any(r => r.Check is IMarkupContentCheck)
+            ? new Lazy<Task<ContentCheckMarkupResult>>(() => _markupProvider.GetMarkupAsync(
+                new ContentCheckMarkupRequest
+                {
+                    ContentKey = request.Content.Key,
+                    Culture = request.Culture,
+                    Segment = request.Segment,
+                },
+                cancellationToken))
+            : null;
+
+        // Parsed at most once per run too, the same "share it, don't refetch/reparse it" idea one
+        // level up from markupFetch above -- two structural markup checks in the same run share
+        // one HtmlDocument instead of each parsing the same HTML independently. Built from
+        // markupFetch, not the eventual Html string directly, since the fetch itself is still
+        // lazy at this point; only actually parses once a markup check's own EvaluateAsync
+        // touches ContentCheckMarkupContext.GetDocumentAsync().
+        var markupDocument = markupFetch is null
+            ? null
+            : new Lazy<Task<HtmlDocument>>(async () =>
+            {
+                var markup = await markupFetch.Value;
+                var document = new HtmlDocument();
+                document.LoadHtml(markup.Html ?? string.Empty);
+                return document;
+            });
+
         var entries = new List<ContentCheckReportEntry>(request.Rules.Count);
 
         foreach (var rule in freeRules)
         {
-            entries.Add(await RunRuleAsync(rule, request, cancellationToken));
+            entries.Add(await RunRuleAsync(rule, request, markupFetch, markupDocument, cancellationToken));
         }
 
         var mandatoryFreeFailure = entries.Any(e =>
@@ -74,7 +111,7 @@ internal sealed class ContentCheckRunner : IContentCheckRunner
         {
             using var throttle = new SemaphoreSlim(MaxConcurrentMeteredChecks);
             var meteredEntries = await Task.WhenAll(meteredRules.Select(rule =>
-                RunThrottledRuleAsync(rule, request, throttle, cancellationToken)));
+                RunThrottledRuleAsync(rule, request, markupFetch, markupDocument, throttle, cancellationToken)));
             entries.AddRange(meteredEntries);
         }
 
@@ -97,13 +134,15 @@ internal sealed class ContentCheckRunner : IContentCheckRunner
     private async Task<ContentCheckReportEntry> RunThrottledRuleAsync(
         ResolvedContentCheckRule rule,
         ContentCheckRunRequest request,
+        Lazy<Task<ContentCheckMarkupResult>>? markupFetch,
+        Lazy<Task<HtmlDocument>>? markupDocument,
         SemaphoreSlim throttle,
         CancellationToken cancellationToken)
     {
         await throttle.WaitAsync(cancellationToken);
         try
         {
-            return await RunRuleAsync(rule, request, cancellationToken);
+            return await RunRuleAsync(rule, request, markupFetch, markupDocument, cancellationToken);
         }
         finally
         {
@@ -114,6 +153,8 @@ internal sealed class ContentCheckRunner : IContentCheckRunner
     private async Task<ContentCheckReportEntry> RunRuleAsync(
         ResolvedContentCheckRule rule,
         ContentCheckRunRequest request,
+        Lazy<Task<ContentCheckMarkupResult>>? markupFetch,
+        Lazy<Task<HtmlDocument>>? markupDocument,
         CancellationToken cancellationToken)
     {
         var cacheKey = BuildCacheKey(rule, request);
@@ -139,13 +180,31 @@ internal sealed class ContentCheckRunner : IContentCheckRunner
         ContentCheckResult result;
         try
         {
-            var context = new ContentCheckContext
+            result = rule.Check switch
             {
-                Content = request.Content,
-                Culture = request.Culture,
-                Segment = request.Segment,
+                IMarkupContentCheck markupCheck => await markupCheck.EvaluateAsync(
+                    new ContentCheckMarkupContext
+                    {
+                        Content = request.Content,
+                        Culture = request.Culture,
+                        Segment = request.Segment,
+                        Markup = await markupFetch!.Value,
+                        Document = markupDocument!,
+                    },
+                    rule.Config,
+                    cancellationToken),
+                IPropertyContentCheck propertyCheck => await propertyCheck.EvaluateAsync(
+                    new ContentCheckContext
+                    {
+                        Content = request.Content,
+                        Culture = request.Culture,
+                        Segment = request.Segment,
+                    },
+                    rule.Config,
+                    cancellationToken),
+                _ => throw new InvalidOperationException(
+                    $"Check '{rule.Check.Alias}' is neither an {nameof(IPropertyContentCheck)} nor an {nameof(IMarkupContentCheck)}."),
             };
-            result = await rule.Check.EvaluateAsync(context, rule.Config, cancellationToken);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {

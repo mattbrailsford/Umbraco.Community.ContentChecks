@@ -209,6 +209,15 @@ internal sealed class ContentCheckResolutionService : IContentCheckResolutionSer
         foreach (var policy in policies)
         {
             var rules = ResolveRules(policy);
+
+            if (cascading)
+            {
+                // Markup checks are whole-page-only (docs/markup-checks-exploration.md §5) -- a
+                // nested element instance has no URL of its own, so a markup rule never survives
+                // into a cascading match. It still resolves normally at the root (cascading: false).
+                rules = rules.Where(r => r.Check is not IMarkupContentCheck).ToList();
+            }
+
             if (rules.Count == 0)
             {
                 continue;

@@ -1,7 +1,9 @@
+using HtmlAgilityPack;
 using Moq;
 using NUnit.Framework;
 using Umbraco.Cms.Core.Events;
 using Umbraco.Community.ContentChecks.Core.Checks;
+using Umbraco.Community.ContentChecks.Core.Markup;
 
 namespace Umbraco.Community.ContentChecks.Tests.Unit.Checks;
 
@@ -10,6 +12,7 @@ public class ContentCheckRunnerTests
 {
     private InMemoryContentCheckResultCache _cache = null!;
     private Mock<IEventAggregator> _eventAggregator = null!;
+    private Mock<IContentCheckMarkupProvider> _markupProvider = null!;
     private ContentCheckRunner _runner = null!;
 
     [SetUp]
@@ -17,7 +20,8 @@ public class ContentCheckRunnerTests
     {
         _cache = new InMemoryContentCheckResultCache();
         _eventAggregator = new Mock<IEventAggregator>();
-        _runner = new ContentCheckRunner(_cache, _eventAggregator.Object);
+        _markupProvider = new Mock<IContentCheckMarkupProvider>();
+        _runner = new ContentCheckRunner(_cache, _eventAggregator.Object, _markupProvider.Object);
     }
 
     private static InMemoryContentCheckSnapshot CreateSnapshot()
@@ -25,6 +29,17 @@ public class ContentCheckRunnerTests
 
     private static ResolvedContentCheckRule Rule(
         FakeContentCheck check,
+        RequirementLevel requirementLevel = RequirementLevel.Recommended)
+        => new()
+        {
+            RuleKey = Guid.NewGuid(),
+            Check = check,
+            Config = new ContentCheckConfig(),
+            RequirementLevel = requirementLevel,
+        };
+
+    private static ResolvedContentCheckRule Rule(
+        FakeMarkupContentCheck check,
         RequirementLevel requirementLevel = RequirementLevel.Recommended)
         => new()
         {
@@ -202,6 +217,136 @@ public class ContentCheckRunnerTests
             check.EvaluateCallCount,
             Is.EqualTo(2),
             "A value on a different culture is different content, and must not share a cached result.");
+    }
+
+    [Test]
+    public async Task RunAsync_NoMarkupRules_NeverCallsTheMarkupProvider()
+    {
+        var request = new ContentCheckRunRequest { Content = CreateSnapshot(), Rules = [Rule(PassingCheck())] };
+
+        await _runner.RunAsync(request, CancellationToken.None);
+
+        _markupProvider.Verify(
+            p => p.GetMarkupAsync(It.IsAny<ContentCheckMarkupRequest>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Test]
+    public async Task RunAsync_MarkupRule_PassesTheFetchedMarkupToTheCheck()
+    {
+        var markup = new ContentCheckMarkupResult { Success = true, Html = "<html>fetched</html>" };
+        _markupProvider
+            .Setup(p => p.GetMarkupAsync(It.IsAny<ContentCheckMarkupRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(markup);
+
+        ContentCheckMarkupContext? seenContext = null;
+        var markupCheck = new FakeMarkupContentCheck(
+            "markup",
+            ContentCheckCost.Metered,
+            ContentCheckKind.Deterministic,
+            context =>
+            {
+                seenContext = context;
+                return new ContentCheckResult { Status = ContentCheckStatus.Pass, Message = "ok" };
+            });
+
+        var request = new ContentCheckRunRequest { Content = CreateSnapshot(), Rules = [Rule(markupCheck)] };
+
+        await _runner.RunAsync(request, CancellationToken.None);
+
+        Assert.That(seenContext, Is.Not.Null);
+        Assert.That(seenContext!.Markup, Is.SameAs(markup));
+    }
+
+    [Test]
+    public async Task RunAsync_TwoMarkupRulesInOneRun_FetchesMarkupOnlyOnce()
+    {
+        _markupProvider
+            .Setup(p => p.GetMarkupAsync(It.IsAny<ContentCheckMarkupRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ContentCheckMarkupResult { Success = true, Html = "<html></html>" });
+
+        var firstMarkupCheck = new FakeMarkupContentCheck(
+            "markup-1", ContentCheckCost.Metered, ContentCheckKind.Deterministic,
+            _ => new ContentCheckResult { Status = ContentCheckStatus.Pass, Message = "ok" });
+        var secondMarkupCheck = new FakeMarkupContentCheck(
+            "markup-2", ContentCheckCost.Metered, ContentCheckKind.Deterministic,
+            _ => new ContentCheckResult { Status = ContentCheckStatus.Pass, Message = "ok" });
+
+        var request = new ContentCheckRunRequest
+        {
+            Content = CreateSnapshot(),
+            Rules = [Rule(firstMarkupCheck), Rule(secondMarkupCheck)],
+        };
+
+        await _runner.RunAsync(request, CancellationToken.None);
+
+        _markupProvider.Verify(
+            p => p.GetMarkupAsync(It.IsAny<ContentCheckMarkupRequest>(), It.IsAny<CancellationToken>()),
+            Times.Once,
+            "Two markup rules in the same run must share one fetch, not one each.");
+    }
+
+    [Test]
+    public async Task RunAsync_TwoMarkupRulesInOneRun_ShareTheSameParsedDocumentInstance()
+    {
+        _markupProvider
+            .Setup(p => p.GetMarkupAsync(It.IsAny<ContentCheckMarkupRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ContentCheckMarkupResult { Success = true, Html = "<html></html>" });
+
+        HtmlDocument? firstSeenDocument = null;
+        HtmlDocument? secondSeenDocument = null;
+
+        var firstMarkupCheck = new FakeMarkupContentCheck(
+            "markup-1", ContentCheckCost.Metered, ContentCheckKind.Deterministic,
+            context =>
+            {
+                firstSeenDocument = context.GetDocumentAsync().GetAwaiter().GetResult();
+                return new ContentCheckResult { Status = ContentCheckStatus.Pass, Message = "ok" };
+            });
+        var secondMarkupCheck = new FakeMarkupContentCheck(
+            "markup-2", ContentCheckCost.Metered, ContentCheckKind.Deterministic,
+            context =>
+            {
+                secondSeenDocument = context.GetDocumentAsync().GetAwaiter().GetResult();
+                return new ContentCheckResult { Status = ContentCheckStatus.Pass, Message = "ok" };
+            });
+
+        var request = new ContentCheckRunRequest
+        {
+            Content = CreateSnapshot(),
+            Rules = [Rule(firstMarkupCheck), Rule(secondMarkupCheck)],
+        };
+
+        await _runner.RunAsync(request, CancellationToken.None);
+
+        Assert.That(firstSeenDocument, Is.Not.Null);
+        Assert.That(secondSeenDocument, Is.Not.Null);
+        Assert.That(firstSeenDocument, Is.SameAs(secondSeenDocument), "Two markup rules in the same run must share one parsed document, not reparse it each.");
+    }
+
+    [Test]
+    public async Task RunAsync_MandatoryFreeFailure_ShortCircuitsAMeteredMarkupRule_WithoutFetching()
+    {
+        var freeCheck = new FakeContentCheck(
+            "free-blocking", ContentCheckCost.Free, ContentCheckKind.Deterministic,
+            _ => new ContentCheckResult { Status = ContentCheckStatus.Fail, Message = "failed" });
+        var markupCheck = new FakeMarkupContentCheck(
+            "markup", ContentCheckCost.Metered, ContentCheckKind.Deterministic,
+            _ => new ContentCheckResult { Status = ContentCheckStatus.Pass, Message = "should not run" });
+
+        var request = new ContentCheckRunRequest
+        {
+            Content = CreateSnapshot(),
+            Rules = [Rule(freeCheck, RequirementLevel.Mandatory), Rule(markupCheck, RequirementLevel.Optional)],
+        };
+
+        await _runner.RunAsync(request, CancellationToken.None);
+
+        Assert.That(markupCheck.EvaluateCallCount, Is.EqualTo(0));
+        _markupProvider.Verify(
+            p => p.GetMarkupAsync(It.IsAny<ContentCheckMarkupRequest>(), It.IsAny<CancellationToken>()),
+            Times.Never,
+            "A markup fetch skipped by the short-circuit must never actually happen.");
     }
 
     private static FakeContentCheck PassingCheck()

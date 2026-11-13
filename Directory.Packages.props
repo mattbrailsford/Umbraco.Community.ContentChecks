@@ -16,6 +16,9 @@
     <PackageVersion Include="Umbraco.Cms.Persistence.EFCore.SqlServer" Version="[18.3.1,18.999.999)" />
     <PackageVersion Include="Umbraco.Cms.Persistence.EFCore.Sqlite" Version="[18.3.1,18.999.999)" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.15" />
+    <!-- Already a transitive dependency of Umbraco.Cms.Core itself (used for rich text handling);
+         pinned explicitly since Core's own ImageAltTextCheck now parses HTML directly with it. -->
+    <PackageVersion Include="HtmlAgilityPack" Version="1.13.0" />
     <!-- Umbraco.AI — normal NuGet dependency of the .AI bridge project only, version range
          matching the same v18 line, per docs/ai-integration-spec.md. Never referenced from Core. -->
     <PackageVersion Include="Umbraco.AI.Core" Version="[18.8.0,18.999.999)" />

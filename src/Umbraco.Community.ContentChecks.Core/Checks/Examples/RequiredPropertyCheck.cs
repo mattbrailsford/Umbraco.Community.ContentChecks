@@ -23,7 +23,7 @@ public class RequiredPropertyCheckConfig
 /// <see cref="ContentCheckStatus.Fail"/>/<see cref="ContentCheckStatus.Pass"/>, and <see cref="ContentCheckTarget"/>.
 /// </summary>
 [ContentCheck("required-property", "Required property")]
-public sealed class RequiredPropertyCheck : ContentCheckBase<RequiredPropertyCheckConfig>
+public sealed class RequiredPropertyCheck : PropertyContentCheckBase<RequiredPropertyCheckConfig>
 {
     /// <inheritdoc />
     public override string Description => "Fails when a given property has no value.";

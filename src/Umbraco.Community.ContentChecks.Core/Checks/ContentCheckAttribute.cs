@@ -2,7 +2,8 @@ namespace Umbraco.Community.ContentChecks.Core.Checks;
 
 /// <summary>
 /// Attribute to mark <see cref="IContentCheck"/> implementations, declaring their identity and
-/// classification. Every real check is declared this way and inherits <see cref="ContentCheckBase{TConfig}"/>
+/// classification. Every real check is declared this way and inherits
+/// <see cref="PropertyContentCheckBase{TConfig}"/> or <see cref="Markup.MarkupContentCheckBase{TConfig}"/>
 /// rather than implementing <see cref="IContentCheck"/> directly.
 /// </summary>
 [AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = false)]

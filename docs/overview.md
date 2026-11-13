@@ -15,7 +15,7 @@ This is the mainline document — vision, naming, cross-cutting decisions, and t
 - [Deploy Integration](deploy-integration-spec.md) — `Umbraco.Community.ContentChecks.Deploy`, moving check policies (and now folders) between environments (not yet a numbered phase; §1's disk-vs-volatile decision is a recommendation pending confirmation)
 - [Guard](guard-spec.md) — per-section, per-user/role control over whether a failing rule warns or blocks (not yet a numbered phase; built and verified 2026-08-13, reconciled with Core Contract/Triggers — full CRUD, backoffice UI, EF Core persistence)
 - [Notifications](notifications-spec.md) — every notification fired across the project: policy/folder CRUD (consumed by Deploy), and the two-tier run-completion pair (consumed by Automate)
-- [Markup-Based Checking (Exploration)](markup-checks-exploration.md) — a distinct, still-open idea: checks against rendered output, not just properties
+- [Markup-Based Checking (Exploration)](markup-checks-exploration.md) — a distinct idea, but now a real, working, end-to-end slice of it, built same-day (2026-11-13): the preview-credential seam, the default HTTP markup provider, the `IContentCheck`/`IPropertyContentCheck`/`IMarkupContentCheck` contract split (including a resolution-service bug a pre-build design pass caught and fixed), shared fetch-and-parse caching across markup checks in one run, and the first real markup check, `ImageAltTextCheck`. Still open: the rest of §2's named use cases (SEO structure, broken links, AI judgment) are just ideas, not built
 - [Market & Ecosystem Research](research.md) — what already exists, and what it validated or ruled out
 
 ---

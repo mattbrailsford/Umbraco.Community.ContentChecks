@@ -4,11 +4,11 @@ using Umbraco.Community.ContentChecks.Core.Config;
 namespace Umbraco.Community.ContentChecks.Tests.Unit.Checks;
 
 /// <summary>
-/// A minimal <see cref="IContentCheck"/> test double that bypasses <see cref="ContentCheckBase{TConfig}"/>
-/// entirely -- the runner only depends on the interface, so tests exercising the runner don't
-/// need real attribute/schema plumbing.
+/// A minimal <see cref="IPropertyContentCheck"/> test double that bypasses
+/// <see cref="PropertyContentCheckBase{TConfig}"/> entirely -- the runner only depends on the
+/// interface, so tests exercising the runner don't need real attribute/schema plumbing.
 /// </summary>
-internal sealed class FakeContentCheck : IContentCheck
+internal sealed class FakeContentCheck : IPropertyContentCheck
 {
     private readonly Func<ContentCheckContext, ContentCheckResult> _evaluate;
 

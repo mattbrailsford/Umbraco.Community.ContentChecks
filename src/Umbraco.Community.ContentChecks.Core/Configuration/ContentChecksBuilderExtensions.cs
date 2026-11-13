@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Umbraco.Cms.Core.DependencyInjection;
 using Umbraco.Community.ContentChecks.Core.Checks;
 using Umbraco.Community.ContentChecks.Core.Config;
+using Umbraco.Community.ContentChecks.Core.Markup;
 using Umbraco.Community.ContentChecks.Core.Policies;
 using Umbraco.Community.ContentChecks.Core.Policies.Elements;
 
@@ -74,6 +75,15 @@ public static class ContentChecksBuilderExtensions
         builder.Services.AddSingleton<IContentCheckResolutionService, ContentCheckResolutionService>();
         builder.Services.AddSingleton<IContentCheckEffectiveChecksService, ContentCheckEffectiveChecksService>();
         builder.Services.AddSingleton<IContentCheckEvaluationService, ContentCheckEvaluationService>();
+
+        // Groundwork for markup-based checks (docs/markup-checks-exploration.md) -- the
+        // IContentCheck/IMarkupContentCheck contract split itself isn't built yet, but the
+        // provider that will serve it is: resolve the content's URL, mint a preview credential
+        // (see IContentCheckPreviewCredentialMinter's remarks for why that's its own seam), fetch
+        // over HTTP. DI-replaceable -- a site swaps the whole registration for a headless frontend.
+        builder.Services.AddSingleton<IContentCheckPreviewCredentialMinter, PreviewTokenCredentialMinter>();
+        builder.Services.AddHttpClient(HttpContentCheckMarkupProvider.HttpClientName);
+        builder.Services.AddSingleton<IContentCheckMarkupProvider, HttpContentCheckMarkupProvider>();
 
         return builder;
     }
