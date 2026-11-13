@@ -22,6 +22,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Umbraco.Community.ContentChecks.Core\Umbraco.Community.ContentChecks.Core.csproj" />
+    <ProjectReference Include="..\..\src\Umbraco.Community.ContentChecks.AI\Umbraco.Community.ContentChecks.AI.csproj" />
   </ItemGroup>
 
 </Project>

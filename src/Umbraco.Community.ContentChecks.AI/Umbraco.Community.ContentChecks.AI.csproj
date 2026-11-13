@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Title>Umbraco Content Checks — AI</Title>
+    <Description>AI-judged rubric checks and agent tools for Umbraco Content Checks, built on Umbraco.AI.</Description>
+    <Company>Matt Brailsford</Company>
+    <Authors>Matt Brailsford</Authors>
+    <Copyright>Copyright © Matt Brailsford $([System.DateTime]::Today.ToString('yyyy'))</Copyright>
+    <Product>Umbraco Content Checks</Product>
+    <PackageProjectUrl>https://github.com/mattbrailsford/Umbraco.Community.ContentChecks</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/mattbrailsford/Umbraco.Community.ContentChecks</RepositoryUrl>
+    <PackageTags>umbraco content-checks content quality validation ai umbraco-marketplace</PackageTags>
+  </PropertyGroup>
+
+  <!-- Takes Umbraco.AI as an ordinary NuGet package reference (version range), the same direction
+       any third-party consumer of Umbraco.AI would: never a project reference across repos. See
+       docs/ai-integration-spec.md and docs/overview.md, sections 1 and 6. -->
+  <ItemGroup>
+    <PackageReference Include="Umbraco.AI.Core" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Umbraco.Community.ContentChecks.Core\Umbraco.Community.ContentChecks.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+      <_Parameter1>Umbraco.Test.ContentChecks.Unit</_Parameter1>
+    </AssemblyAttribute>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+      <_Parameter1>Umbraco.Test.ContentChecks.Integration</_Parameter1>
+    </AssemblyAttribute>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+      <_Parameter1>DynamicProxyGenAssembly2</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
+
+</Project>
