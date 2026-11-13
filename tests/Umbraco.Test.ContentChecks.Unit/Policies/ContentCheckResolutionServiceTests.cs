@@ -220,6 +220,101 @@ public class ContentCheckResolutionServiceTests
         Assert.That(featureCardTarget.Snapshot.ContentTypeAlias, Is.EqualTo("featureCard"));
     }
 
+    /// <summary>
+    /// Guards docs/markup-checks-exploration.md §4.5/§5: a markup check is whole-page-only and
+    /// must never resolve as a cascading match into a nested element instance, which has no URL
+    /// of its own. Without the fix, a markup rule in a cascading policy would resolve just like
+    /// any property rule.
+    /// </summary>
+    [Test]
+    public async Task ResolveAsync_CascadingMatch_ExcludesMarkupCheckRules_ButKeepsPropertyCheckRules()
+    {
+        var pageKey = Guid.NewGuid();
+        var testimonialKey = Guid.NewGuid();
+
+        var pageType = ContentTestFactory.ContentType(
+            pageKey,
+            propertyTypes: [ContentTestFactory.PropertyType("content", "Umbraco.BlockList").Object]);
+        var testimonialType = ContentTestFactory.ContentType(testimonialKey);
+
+        var contentTypeService = new Mock<IContentTypeService>();
+        contentTypeService.Setup(s => s.GetAsync(pageKey)).ReturnsAsync(pageType.Object);
+        contentTypeService.Setup(s => s.GetAsync(testimonialKey)).ReturnsAsync(testimonialType.Object);
+
+        var testimonialInstance = new ContentCheckElementInstance
+        {
+            Key = Guid.NewGuid(),
+            ContentTypeKey = testimonialKey,
+            ContentTypeAlias = "testimonial",
+            Values = [],
+        };
+
+        var elementSource = new FakeContentCheckElementSourceByValue("Umbraco.BlockList", new Dictionary<object, IReadOnlyList<ContentCheckElementInstance>>
+        {
+            ["root-json"] = [testimonialInstance],
+        });
+
+        var propertyCheck = PassingCheck("icon-required");
+        var markupCheck = new FakeMarkupContentCheck(
+            "markup-check", ContentCheckCost.Metered, ContentCheckKind.Deterministic,
+            _ => new ContentCheckResult { Status = ContentCheckStatus.Pass, Message = "ok" });
+
+        var policyService = new FakeContentCheckPolicyService();
+        policyService.AddPolicy(new ContentCheckPolicy
+        {
+            Alias = "testimonial-policy",
+            Name = "Testimonial",
+            ContentTypeKey = testimonialKey,
+            Rules =
+            [
+                new ContentCheckPolicyRule { CheckAlias = propertyCheck.Alias },
+                new ContentCheckPolicyRule { CheckAlias = markupCheck.Alias },
+            ],
+        });
+
+        var service = CreateService(policyService, [propertyCheck, markupCheck], [elementSource], contentTypeService);
+
+        var content = ContentTestFactory.Content(pageKey, properties: [ContentTestFactory.Property(ContentTestFactory.PropertyType("content", "Umbraco.BlockList").Object)]);
+        content.SetupGetValue("content", "root-json");
+
+        var targets = await service.ResolveAsync(content.Object);
+
+        var testimonialTarget = targets.Single(t => t.Snapshot.ContentTypeAlias == "testimonial");
+        var resolvedAliases = testimonialTarget.PolicyMatches.SelectMany(m => m.Rules).Select(r => r.Check.Alias).ToList();
+
+        Assert.That(resolvedAliases, Does.Contain("icon-required"));
+        Assert.That(resolvedAliases, Does.Not.Contain("markup-check"), "A markup check must never resolve as a cascading match.");
+    }
+
+    [Test]
+    public async Task ResolveAsync_DirectMatch_IncludesAMarkupCheckRule()
+    {
+        var contentTypeKey = Guid.NewGuid();
+        var contentType = ContentTestFactory.ContentType(contentTypeKey);
+        var contentTypeService = new Mock<IContentTypeService>();
+        contentTypeService.Setup(s => s.GetAsync(contentTypeKey)).ReturnsAsync(contentType.Object);
+
+        var markupCheck = new FakeMarkupContentCheck(
+            "markup-check", ContentCheckCost.Metered, ContentCheckKind.Deterministic,
+            _ => new ContentCheckResult { Status = ContentCheckStatus.Pass, Message = "ok" });
+        var policyService = new FakeContentCheckPolicyService();
+        policyService.AddPolicy(new ContentCheckPolicy
+        {
+            Alias = "direct-policy",
+            Name = "Direct policy",
+            ContentTypeKey = contentTypeKey,
+            Rules = [new ContentCheckPolicyRule { CheckAlias = markupCheck.Alias }],
+        });
+
+        var service = CreateService(policyService, [markupCheck], [], contentTypeService);
+        var content = ContentTestFactory.Content(contentTypeKey);
+
+        var targets = await service.ResolveAsync(content.Object);
+
+        Assert.That(targets, Has.Count.EqualTo(1));
+        Assert.That(targets[0].PolicyMatches.SelectMany(m => m.Rules).Select(r => r.Check.Alias), Is.EqualTo(new[] { "markup-check" }));
+    }
+
     [Test]
     public async Task ResolveAsync_CascadingCost_NInstancesOfAMeteredCheck_ProducesExactlyNTargets()
     {

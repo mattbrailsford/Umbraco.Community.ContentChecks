@@ -4,10 +4,12 @@ using Umbraco.Community.ContentChecks.Core.Config;
 namespace Umbraco.Community.ContentChecks.Core.Checks;
 
 /// <summary>
-/// Defines a check that evaluates a single content snapshot and returns a status plus
-/// actionable feedback. The interface is thin and non-generic so the runner and collection
-/// builder can work with it uniformly; nobody implements it directly — see
-/// <see cref="ContentCheckBase{TConfig}"/>.
+/// What every check declares about itself, regardless of what it evaluates. Metadata only — no
+/// <c>EvaluateAsync</c> here, since a property check and a markup check take different input
+/// shapes (see <see cref="IPropertyContentCheck"/>/<see cref="IMarkupContentCheck"/>) and
+/// shouldn't share one signature. A bare <see cref="IContentCheck"/> describes something but
+/// can't run anything; nobody implements this interface directly — see
+/// <see cref="ContentCheckMetadataBase{TConfig}"/>.
 /// </summary>
 public interface IContentCheck : IDiscoverable
 {
@@ -48,16 +50,4 @@ public interface IContentCheck : IDiscoverable
     /// </summary>
     /// <returns>The schema, or <c>null</c> if the check takes no configuration.</returns>
     ContentCheckConfigSchema? GetConfigSchema();
-
-    /// <summary>
-    /// Evaluates the check against a single content snapshot.
-    /// </summary>
-    /// <param name="context">The content being evaluated, plus culture/segment.</param>
-    /// <param name="config">The check's resolved configuration for this rule.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>The evaluation result.</returns>
-    Task<ContentCheckResult> EvaluateAsync(
-        ContentCheckContext context,
-        ContentCheckConfig config,
-        CancellationToken cancellationToken);
 }

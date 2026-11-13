@@ -72,7 +72,7 @@ public class RubricContentCheckConfig
 /// concerns to surface to an editor here — the Message is a generic score-vs-threshold line.
 /// </remarks>
 [ContentCheck("rubric", "Rubric (AI-judged)", Cost = ContentCheckCost.Metered, Kind = ContentCheckKind.Nondeterministic)]
-public sealed class RubricContentCheck : ContentCheckBase<RubricContentCheckConfig>
+public sealed class RubricContentCheck : PropertyContentCheckBase<RubricContentCheckConfig>
 {
     private readonly IAIDecisionService _decisionService;
 

@@ -4,24 +4,26 @@ using Umbraco.Community.ContentChecks.Core.Config;
 namespace Umbraco.Community.ContentChecks.Core.Checks;
 
 /// <summary>
-/// What you actually write a check by inheriting. Direct port of Umbraco.AI's
-/// <c>AIGuardrailEvaluatorBase&lt;TConfig&gt;</c>: reads <see cref="ContentCheckAttribute"/> off
-/// the derived type, builds the config schema lazily, exposes <see cref="ResolveConfig"/>. One
-/// constructor only — no legacy overload, since there's nothing to be backward-compatible with
-/// in a greenfield package.
+/// The shared foundation under both <see cref="PropertyContentCheckBase{TConfig}"/> and
+/// <see cref="Markup.MarkupContentCheckBase{TConfig}"/> — the attribute-reading/lazy-schema/
+/// <see cref="ResolveConfig"/> plumbing has nothing to do with property-vs-markup. Split out of
+/// what used to be a single <c>ContentCheckBase&lt;TConfig&gt;</c> once a markup branch needed
+/// the same plumbing under a different <c>EvaluateAsync</c> shape
+/// (docs/markup-checks-exploration.md §4). Direct port of Umbraco.AI's
+/// <c>AIGuardrailEvaluatorBase&lt;TConfig&gt;</c>, same as before this split.
 /// </summary>
 /// <typeparam name="TConfig">The configuration type for this check.</typeparam>
-public abstract class ContentCheckBase<TConfig> : IContentCheck
+public abstract class ContentCheckMetadataBase<TConfig> : IContentCheck
 {
     private readonly Lazy<ContentCheckConfigSchema?> _configSchema;
     private readonly IContentCheckConfigResolver _configResolver;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="ContentCheckBase{TConfig}"/> class.
+    /// Initializes a new instance of the <see cref="ContentCheckMetadataBase{TConfig}"/> class.
     /// </summary>
     /// <param name="infrastructure">The check infrastructure dependencies.</param>
     /// <exception cref="InvalidOperationException">Thrown if the derived class is missing the required attribute.</exception>
-    protected ContentCheckBase(IContentCheckInfrastructure infrastructure)
+    protected ContentCheckMetadataBase(IContentCheckInfrastructure infrastructure)
     {
         SchemaBuilder = infrastructure.SchemaBuilder;
         _configResolver = infrastructure.ConfigResolver;
@@ -81,38 +83,11 @@ public abstract class ContentCheckBase<TConfig> : IContentCheck
         return (TConfig?)_configResolver.ResolveModel(typeof(TConfig), configElement, GetConfigSchema());
     }
 
-    /// <inheritdoc />
-    /// <remarks>
-    /// Resolves the raw <see cref="ContentCheckConfig"/> into a typed, defaulted <c>TConfig</c>
-    /// once, then hands it to <see cref="EvaluateAsync(ContentCheckContext, TConfig, CancellationToken)"/>
-    /// — every real check overrides that one instead, so the "resolve, then fall back to a
-    /// default instance" step doesn't get repeated in every check's own body.
-    /// </remarks>
-    public Task<ContentCheckResult> EvaluateAsync(
-        ContentCheckContext context,
-        ContentCheckConfig config,
-        CancellationToken cancellationToken)
-        => EvaluateAsync(context, ResolveConfig(config) ?? CreateDefaultConfig(), cancellationToken);
-
-    /// <summary>
-    /// Evaluates the check against a single content snapshot, with its configuration already
-    /// resolved to <typeparamref name="TConfig"/> and defaulted (via the config type's own
-    /// property initializers) if none was stored. What a check author actually overrides.
-    /// </summary>
-    /// <param name="context">The content being evaluated, plus culture/segment.</param>
-    /// <param name="config">The check's resolved, typed configuration.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>The evaluation result.</returns>
-    protected abstract Task<ContentCheckResult> EvaluateAsync(
-        ContentCheckContext context,
-        TConfig config,
-        CancellationToken cancellationToken);
-
     /// <summary>
     /// Builds the default <typeparamref name="TConfig"/> instance — the same instance the
     /// config schema reads its per-field default values from, so an unconfigured rule behaves
     /// exactly as its schema already advertises, not some separately-invented fallback.
     /// </summary>
-    private static TConfig CreateDefaultConfig()
+    protected static TConfig CreateDefaultConfig()
         => (TConfig)Activator.CreateInstance(typeof(TConfig))!;
 }

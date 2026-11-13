@@ -3,6 +3,7 @@ using NUnit.Framework;
 using Umbraco.Cms.Core.Events;
 using Umbraco.Cms.Core.Models;
 using Umbraco.Community.ContentChecks.Core.Checks;
+using Umbraco.Community.ContentChecks.Core.Markup;
 using Umbraco.Community.ContentChecks.Core.Policies;
 using Umbraco.Community.ContentChecks.Tests.Unit.Checks;
 
@@ -68,7 +69,7 @@ public class ContentCheckEvaluationServiceTests
             .Setup(s => s.ResolveAsync(content, null, null, It.IsAny<CancellationToken>()))
             .ReturnsAsync([rootTarget, nestedTarget]);
 
-        var runner = new ContentCheckRunner(new InMemoryContentCheckResultCache(), Mock.Of<IEventAggregator>());
+        var runner = new ContentCheckRunner(new InMemoryContentCheckResultCache(), Mock.Of<IEventAggregator>(), Mock.Of<IContentCheckMarkupProvider>());
         var service = new ContentCheckEvaluationService(resolutionService.Object, runner);
 
         var progress = new RecordingProgress<ContentCheckEvaluationProgress>();
@@ -100,7 +101,7 @@ public class ContentCheckEvaluationServiceTests
             .Setup(s => s.ResolveAsync(content, null, null, It.IsAny<CancellationToken>()))
             .ReturnsAsync([]);
 
-        var runner = new ContentCheckRunner(new InMemoryContentCheckResultCache(), Mock.Of<IEventAggregator>());
+        var runner = new ContentCheckRunner(new InMemoryContentCheckResultCache(), Mock.Of<IEventAggregator>(), Mock.Of<IContentCheckMarkupProvider>());
         var service = new ContentCheckEvaluationService(resolutionService.Object, runner);
 
         var report = await service.EvaluateAsync(content);
@@ -121,7 +122,7 @@ public class ContentCheckEvaluationServiceTests
             .Setup(s => s.ResolveAsync(content, null, null, It.IsAny<CancellationToken>()))
             .ReturnsAsync([]);
 
-        var runner = new ContentCheckRunner(new InMemoryContentCheckResultCache(), Mock.Of<IEventAggregator>());
+        var runner = new ContentCheckRunner(new InMemoryContentCheckResultCache(), Mock.Of<IEventAggregator>(), Mock.Of<IContentCheckMarkupProvider>());
         var service = new ContentCheckEvaluationService(resolutionService.Object, runner);
 
         var report = await service.EvaluateAsync(content);
