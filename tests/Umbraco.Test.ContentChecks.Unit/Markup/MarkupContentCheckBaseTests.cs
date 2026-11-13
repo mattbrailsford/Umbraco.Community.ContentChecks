@@ -20,6 +20,7 @@ public class MarkupContentCheckBaseTests
         {
             Content = new InMemoryContentCheckSnapshot(Guid.NewGuid(), "page"),
             Markup = new ContentCheckMarkupResult { Success = false, FailureReason = "could not fetch" },
+            Document = MarkupTestHelpers.DocumentFor(string.Empty),
         };
 
         var result = await _check.EvaluateAsync(context, new ContentCheckConfig(), CancellationToken.None);
@@ -37,6 +38,7 @@ public class MarkupContentCheckBaseTests
         {
             Content = new InMemoryContentCheckSnapshot(Guid.NewGuid(), "page"),
             Markup = new ContentCheckMarkupResult { Success = false },
+            Document = MarkupTestHelpers.DocumentFor(string.Empty),
         };
 
         var result = await _check.EvaluateAsync(context, new ContentCheckConfig(), CancellationToken.None);
@@ -51,6 +53,7 @@ public class MarkupContentCheckBaseTests
         {
             Content = new InMemoryContentCheckSnapshot(Guid.NewGuid(), "page"),
             Markup = new ContentCheckMarkupResult { Success = true, Html = "<html>ok</html>" },
+            Document = MarkupTestHelpers.DocumentFor("<html>ok</html>"),
         };
 
         var result = await _check.EvaluateAsync(context, new ContentCheckConfig(), CancellationToken.None);

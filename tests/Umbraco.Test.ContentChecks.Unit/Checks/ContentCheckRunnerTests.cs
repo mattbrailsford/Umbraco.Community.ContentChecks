@@ -1,3 +1,4 @@
+using HtmlAgilityPack;
 using Moq;
 using NUnit.Framework;
 using Umbraco.Cms.Core.Events;
@@ -283,6 +284,44 @@ public class ContentCheckRunnerTests
             p => p.GetMarkupAsync(It.IsAny<ContentCheckMarkupRequest>(), It.IsAny<CancellationToken>()),
             Times.Once,
             "Two markup rules in the same run must share one fetch, not one each.");
+    }
+
+    [Test]
+    public async Task RunAsync_TwoMarkupRulesInOneRun_ShareTheSameParsedDocumentInstance()
+    {
+        _markupProvider
+            .Setup(p => p.GetMarkupAsync(It.IsAny<ContentCheckMarkupRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ContentCheckMarkupResult { Success = true, Html = "<html></html>" });
+
+        HtmlDocument? firstSeenDocument = null;
+        HtmlDocument? secondSeenDocument = null;
+
+        var firstMarkupCheck = new FakeMarkupContentCheck(
+            "markup-1", ContentCheckCost.Metered, ContentCheckKind.Deterministic,
+            context =>
+            {
+                firstSeenDocument = context.GetDocumentAsync().GetAwaiter().GetResult();
+                return new ContentCheckResult { Status = ContentCheckStatus.Pass, Message = "ok" };
+            });
+        var secondMarkupCheck = new FakeMarkupContentCheck(
+            "markup-2", ContentCheckCost.Metered, ContentCheckKind.Deterministic,
+            context =>
+            {
+                secondSeenDocument = context.GetDocumentAsync().GetAwaiter().GetResult();
+                return new ContentCheckResult { Status = ContentCheckStatus.Pass, Message = "ok" };
+            });
+
+        var request = new ContentCheckRunRequest
+        {
+            Content = CreateSnapshot(),
+            Rules = [Rule(firstMarkupCheck), Rule(secondMarkupCheck)],
+        };
+
+        await _runner.RunAsync(request, CancellationToken.None);
+
+        Assert.That(firstSeenDocument, Is.Not.Null);
+        Assert.That(secondSeenDocument, Is.Not.Null);
+        Assert.That(firstSeenDocument, Is.SameAs(secondSeenDocument), "Two markup rules in the same run must share one parsed document, not reparse it each.");
     }
 
     [Test]

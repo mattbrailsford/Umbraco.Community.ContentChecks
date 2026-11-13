@@ -1,3 +1,4 @@
+using HtmlAgilityPack;
 using Umbraco.Community.ContentChecks.Core.Checks;
 
 namespace Umbraco.Community.ContentChecks.Core.Markup;
@@ -33,4 +34,22 @@ public sealed class ContentCheckMarkupContext
     /// <c>true</c> and <see cref="ContentCheckMarkupResult.Html"/> is populated.
     /// </summary>
     public required ContentCheckMarkupResult Markup { get; init; }
+
+    /// <summary>
+    /// The parsed <see cref="Markup"/>, built at most once per check run and shared across every
+    /// markup rule in it — the same "fetch once per run" principle
+    /// <see cref="Checks.ContentCheckRunner"/> already applies to the raw HTTP fetch itself
+    /// (docs/markup-checks-exploration.md §4.2), extended one level up so two structural checks
+    /// in the same run don't each re-parse the same HTML. Only actually parses on first access
+    /// (via <see cref="GetDocumentAsync"/>) — a check that never looks at page structure (a raw
+    /// regex check, an AI-judged check wanting plain text) never pays the parse cost at all.
+    /// </summary>
+    public required Lazy<Task<HtmlDocument>> Document { get; init; }
+
+    /// <summary>
+    /// Gets the parsed document, parsing it on first access and reusing that same parse for
+    /// every other markup check in the same run.
+    /// </summary>
+    /// <returns>The parsed document.</returns>
+    public Task<HtmlDocument> GetDocumentAsync() => Document.Value;
 }

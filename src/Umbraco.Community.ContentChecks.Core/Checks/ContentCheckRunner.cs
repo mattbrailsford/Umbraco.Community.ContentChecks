@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using HtmlAgilityPack;
 using Umbraco.Cms.Core.Events;
 using Umbraco.Community.ContentChecks.Core.Markup;
 
@@ -64,11 +65,27 @@ internal sealed class ContentCheckRunner : IContentCheckRunner
                 cancellationToken))
             : null;
 
+        // Parsed at most once per run too, the same "share it, don't refetch/reparse it" idea one
+        // level up from markupFetch above -- two structural markup checks in the same run share
+        // one HtmlDocument instead of each parsing the same HTML independently. Built from
+        // markupFetch, not the eventual Html string directly, since the fetch itself is still
+        // lazy at this point; only actually parses once a markup check's own EvaluateAsync
+        // touches ContentCheckMarkupContext.GetDocumentAsync().
+        var markupDocument = markupFetch is null
+            ? null
+            : new Lazy<Task<HtmlDocument>>(async () =>
+            {
+                var markup = await markupFetch.Value;
+                var document = new HtmlDocument();
+                document.LoadHtml(markup.Html ?? string.Empty);
+                return document;
+            });
+
         var entries = new List<ContentCheckReportEntry>(request.Rules.Count);
 
         foreach (var rule in freeRules)
         {
-            entries.Add(await RunRuleAsync(rule, request, markupFetch, cancellationToken));
+            entries.Add(await RunRuleAsync(rule, request, markupFetch, markupDocument, cancellationToken));
         }
 
         var mandatoryFreeFailure = entries.Any(e =>
@@ -94,7 +111,7 @@ internal sealed class ContentCheckRunner : IContentCheckRunner
         {
             using var throttle = new SemaphoreSlim(MaxConcurrentMeteredChecks);
             var meteredEntries = await Task.WhenAll(meteredRules.Select(rule =>
-                RunThrottledRuleAsync(rule, request, markupFetch, throttle, cancellationToken)));
+                RunThrottledRuleAsync(rule, request, markupFetch, markupDocument, throttle, cancellationToken)));
             entries.AddRange(meteredEntries);
         }
 
@@ -118,13 +135,14 @@ internal sealed class ContentCheckRunner : IContentCheckRunner
         ResolvedContentCheckRule rule,
         ContentCheckRunRequest request,
         Lazy<Task<ContentCheckMarkupResult>>? markupFetch,
+        Lazy<Task<HtmlDocument>>? markupDocument,
         SemaphoreSlim throttle,
         CancellationToken cancellationToken)
     {
         await throttle.WaitAsync(cancellationToken);
         try
         {
-            return await RunRuleAsync(rule, request, markupFetch, cancellationToken);
+            return await RunRuleAsync(rule, request, markupFetch, markupDocument, cancellationToken);
         }
         finally
         {
@@ -136,6 +154,7 @@ internal sealed class ContentCheckRunner : IContentCheckRunner
         ResolvedContentCheckRule rule,
         ContentCheckRunRequest request,
         Lazy<Task<ContentCheckMarkupResult>>? markupFetch,
+        Lazy<Task<HtmlDocument>>? markupDocument,
         CancellationToken cancellationToken)
     {
         var cacheKey = BuildCacheKey(rule, request);
@@ -170,6 +189,7 @@ internal sealed class ContentCheckRunner : IContentCheckRunner
                         Culture = request.Culture,
                         Segment = request.Segment,
                         Markup = await markupFetch!.Value,
+                        Document = markupDocument!,
                     },
                     rule.Config,
                     cancellationToken),

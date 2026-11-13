@@ -15,6 +15,7 @@
   <ItemGroup>
     <PackageReference Include="Umbraco.Cms.Infrastructure" />
     <PackageReference Include="Umbraco.Cms.Web.Common" />
+    <PackageReference Include="HtmlAgilityPack" />
   </ItemGroup>
 
   <ItemGroup>
