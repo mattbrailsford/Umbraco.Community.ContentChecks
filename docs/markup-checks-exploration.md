@@ -1,6 +1,6 @@
 # Content Checks — Markup-Based Checking (Exploration)
 
-**Status:** Exploratory. This captures the full extent of an idea, not a build-ready spec. Some things got settled along the way (marked **Settled**); most of the interesting parts are still genuinely open (marked **Open**) and are recorded as forks with their reasoning, not as decisions. Narrowing to what actually ships is a deliberate, separate, later step — nothing here should be read as "cut" or "deferred" just because it's unresolved. **One piece of groundwork is now actually built, ahead of the rest of this (2026-11-13):** §9.4's preview-credential seam (`IContentCheckPreviewCredentialMinter`), proven against real Umbraco 18 code, not just sketched. The full `IContentCheckMarkupProvider`/`IMarkupContentCheck` contract itself (§4, §9) remains unbuilt.
+**Status:** Exploratory. This captures the full extent of an idea, not a build-ready spec. Some things got settled along the way (marked **Settled**); most of the interesting parts are still genuinely open (marked **Open**) and are recorded as forks with their reasoning, not as decisions. Narrowing to what actually ships is a deliberate, separate, later step — nothing here should be read as "cut" or "deferred" just because it's unresolved. **Real groundwork is now built, ahead of the rest of this (2026-11-13):** the preview-credential seam (§9.4) and the default `IContentCheckMarkupProvider` itself (§9.2, §9.3) — request/response shape, the HTTP-fetch implementation, URL resolution, and the preview cookie all wired together, unit-tested. **Still unbuilt:** the `IMarkupContentCheck`/`MarkupContentCheckBase` check-type contract split (§4) that would actually let someone author a markup check and have it call this provider — today the provider exists with nothing yet calling it. URL resolution's real-site behavior also remains unverified (§9.3's "Not yet proven" note).
 
 **Companion to, not part of:** [Overview](overview.md) and its specs ([Core Contract](core-contract-spec.md), [Policy Resolution](policy-resolution-spec.md), [Management API & UI](management-api-ui-spec.md), [Triggers](triggers-spec.md), [AI Integration](ai-integration-spec.md)). Nothing here has been merged into those. If and when parts of this narrow down to something buildable, they get folded in explicitly, not implicitly.
 
@@ -100,33 +100,39 @@ A single, DI-replaceable `IContentCheckMarkupProvider` service — not a discove
 
 **Named but not pursued:** a discovered collection, each entry declaring what it can handle (mirroring the element-source pattern, keyed by property-editor alias in that case), would serve a site mid-migration (part legacy Razor, part new headless) or a large site with genuinely different frontends per section. More flexible, costs more to build, for a rarer case. Not chosen against — just not the default.
 
-### 9.2 Request/response shape — **Open, sketched**
+### 9.2 Request/response shape — **Settled and built**
 
-The request probably does **not** need the full `IContentCheckSnapshot` abstraction — that interface exists for reading properties, and a markup provider isn't reading properties, just needs enough identity to know what to render (content Key, maybe a pre-resolved URL) plus culture/segment.
+Built almost exactly as sketched — a decent signal the original sketch was already in the right place. No full `IContentCheckSnapshot`: a markup provider isn't reading properties, it just needs enough identity to know what to fetch.
 
 ```csharp
 public sealed class ContentCheckMarkupRequest
 {
-    // Key + culture/segment at minimum; exact shape still open — see also §7 (no Preview flag needed).
+    public required Guid ContentKey { get; init; }
+    public string? Culture { get; init; }
+    public string? Segment { get; init; }
 }
 
 public sealed class ContentCheckMarkupResult
 {
+    public required bool Success { get; init; }
     public string? Html { get; init; }
     public string? Url { get; init; }
     public int? StatusCode { get; init; }
-    public bool Success { get; init; }
     public string? FailureReason { get; init; }
 }
 ```
 
-Provider failure (site down, timeout, no provider configured) maps cleanly onto the **existing** `ContentCheckStatus.NotEvaluated` / `ContentCheckNotEvaluatedReason.Error` machinery already in [Core Contract](core-contract-spec.md) — no new mechanism needed. A more specific reason code (e.g. distinguishing "markup unavailable" from a generic error) is a possible, not-decided future refinement.
+Provider failure (no route, fetch error, non-2xx response) maps cleanly onto the **existing** `ContentCheckStatus.NotEvaluated` / `ContentCheckNotEvaluatedReason.Error` machinery already in [Core Contract](core-contract-spec.md) — no new mechanism needed, and no more specific reason code was needed in practice. Both types live in `Umbraco.Community.ContentChecks.Core.Markup`.
 
-### 9.3 Implementation approach for the built-in default — **Open, two real options, not converging yet**
+### 9.3 Implementation approach for the built-in default — **Settled and built: Option A**
 
-**Option A — HTTP round-trip.** The provider resolves the item's URL and makes an HTTP GET to it. Simple, robust, indifferent to Umbraco's internal rendering plumbing. Real costs: needs to reliably know its own base URL (awkward behind load balancers — see §10), needs to somehow carry preview auth over the request (Umbraco preview is normally tied to a signed-in backoffice user's cookie, not something a background process naturally has), needs real timeout/circuit-breaking so a slow render doesn't hang a check run, and has a faint self-referential-request oddity (a site calling itself over the network).
+**Option A — HTTP round-trip, built as `HttpContentCheckMarkupProvider`.** Resolves the item's URL via `IPublishedUrlProvider.GetUrl` (wrapped in `IUmbracoContextFactory.EnsureUmbracoContext()`, since this runs from a background check run, not a live request — there's no ambient `UmbracoContext` otherwise), mints a preview credential via §9.4's seam for the super user, and does a plain `HttpClient` GET with the credential's cookie(s) attached. A non-2xx response, a fetch exception, or an unroutable URL (`Constants.Routing.Unroutable`) all map to `Success = false` with a `FailureReason`; a cancelled fetch propagates rather than being reported as a failure (mirrors `RubricContentCheck`'s same choice for a cancelled AI judgment). Unit-tested against a mocked `HttpMessageHandler` — url-unroutable, credential-mint-failure, success, non-2xx, fetch-exception, and cancellation are each their own test.
 
-**Option B — in-process rendering** via Umbraco's own pipeline directly. No network hop, and it's easier to construct the right preview context *deliberately* rather than fake it over HTTP. Costs: ties much more tightly to Umbraco's internal rendering APIs (route values, controller invocation), which are more fragile and version-sensitive than a plain HTTP call.
+**Option B — in-process rendering — dropped, not just deferred.** Would tie tightly to Umbraco's internal rendering APIs (route values, controller invocation) for no real benefit over Option A, and doesn't even apply to a headless frontend (there's nothing in Umbraco's own pipeline to render in-process when a separate app owns rendering) — so it was never going to be *the* general answer, only a possible optimization for one specific setup. Not worth the fragility for that.
+
+**Known real costs, inherited from Option A's original write-up, not yet mitigated:** no base-URL override for load-balanced/reverse-proxied environments yet (§10, still open — the current build just calls Umbraco's own URL resolution with no override point), and no explicit fetch timeout/circuit-breaking (`HttpClient`'s default timeout applies; a slow render can still hold up a check run longer than ideal).
+
+**Not yet proven against a real running site.** Getting a URL at all for *any* content item (even one genuinely published) couldn't be made to work in this project's lightweight SQLite integration-test harness, despite trying the documented fixes (`EnsureUmbracoContext()`, `WithApplication = true`, `PublishedRepositoryEvents = true`, and manually driving `IDocumentUrlService.InitAsync`) — the published-content/navigation cache (a separate subsystem from the URL-segment tracker, which *did* work once initialized) never got populated in that harness. This is standard, universally-relied-on Umbraco behavior on a real site — resolving a content item's own URL is how every Umbraco page gets routed at all — so it's trusted here, not test-proven in this repo. Re-verify against the real demo site once there's a convenient way to create content through it end-to-end.
 
 **Shelved idea — configurable URL template.** A single template (`https://.../preview?key={key}&culture={culture}`) could plausibly cover both a traditional site and many headless setups (point it at the frontend's own render endpoint instead) with one mechanism, leaving a fully custom `IContentCheckMarkupProvider` only for the genuinely bespoke cases (non-HTTP transport, GraphQL, custom auth). **Explicitly left out for now, for a real reason, not an excuse:** a flat template can't know which domain to use for a given content item without replicating Umbraco's own domain resolution — Umbraco's Culture and Hostnames feature can map different domains to different content roots or cultures within one instance, and a template string alone can't pick the right one. Recorded here so it isn't silently forgotten if domain-aware templating becomes worth the effort later.
 
@@ -144,7 +150,9 @@ Proven empirically (2026-11-13), not just theorized: Umbraco 18's front-end prev
 
 **Not yet proven:** that the minted cookie, attached to a real outbound HTTP request against a running site (rather than verified directly via `VerifyAsync` in-process), actually renders the draft's Razor view end-to-end. An early throwaway spike against a stripped-down host saw a 404 on the rendered page even with `InPreviewMode` confirmed true — plausibly an artifact of that spike's deliberately incomplete host setup (no ModelsBuilder/Razor-compile settings matching a real site), not a real limitation, but unconfirmed against this repo's actual demo site. Re-test once the markup provider's HTTP-fetch piece (§9.3) is built.
 
-## 10. URL/domain resolution — **Open fork**
+## 10. URL/domain resolution — **Open fork; not yet built**
+
+The current `HttpContentCheckMarkupProvider` (§9.3) calls `IPublishedUrlProvider.GetUrl` directly with no override point at all — fine for a normal single-domain site, but doesn't yet solve the problem below.
 
 For Option A (HTTP round-trip) specifically: support an explicit override setting for load-balanced/reverse-proxied environments where the site can't reliably auto-detect its own public URL from the current request, falling back to best-guess otherwise.
 
@@ -158,13 +166,13 @@ For Option A (HTTP round-trip) specifically: support an explicit override settin
 
 ## 12. Open questions, consolidated
 
-1. Exact shape of `ContentCheckMarkupContext` / `ContentCheckMarkupRequest` beyond content identity + culture/segment (§4, §9.2).
-2. HTTP round-trip vs in-process rendering vs (later, maybe) a domain-aware template, for the built-in default provider (§9.3).
-3. Whether to reuse Umbraco's own application-URL setting directly or define a Content Checks-specific override with fallback (§10).
+1. ~~Exact shape of `ContentCheckMarkupContext` / `ContentCheckMarkupRequest`~~ — **resolved and built, see §9.2.** `IMarkupContentCheck`/`MarkupContentCheckBase` (§4's check-type contract split itself) remain unbuilt — this only settled the provider's own request/response shape, not the check-authoring side.
+2. ~~HTTP round-trip vs in-process rendering~~ — **resolved: Option A (HTTP), built as `HttpContentCheckMarkupProvider`, see §9.3.** Option B dropped outright, not deferred. The domain-aware-template idea from §9.3's original write-up remains shelved, unaffected by this.
+3. Whether to reuse Umbraco's own application-URL setting directly or define a Content Checks-specific override with fallback (§10) — still open; the built provider has no override point yet at all.
 4. Whether the single-provider registration shape (§9.1) ever needs to become a discovered collection — revisit only if a real multi-frontend/migration case shows up.
-5. Whether provider failure ever needs a more specific `NotEvaluatedReason` than the existing generic `Error` (§9.2).
-6. ~~How to get a preview-mode render for an already-saved draft with no real editor session~~ — **resolved and built for v18, see §9.4.** Who configures which backoffice user acts as "the judge" (a dedicated setting, vs. always defaulting to the super user) is still open — deferred until the provider itself is designed, since it's the provider's caller that will own that decision.
-7. Whether the minted preview cookie actually renders a draft's Razor view end-to-end over a real HTTP fetch — proven only as far as Umbraco's own token verification, not yet against a real running site (§9.4's "Not yet proven" note).
+5. Whether provider failure ever needs a more specific `NotEvaluatedReason` than the existing generic `Error` (§9.2) — not needed in practice; `FailureReason`'s free text has covered every case built so far.
+6. ~~How to get a preview-mode render for an already-saved draft with no real editor session~~ — **resolved and built for v18, see §9.4.** Who configures which backoffice user acts as "the judge" is also now settled, pragmatically rather than via a new setting: the built provider hard-codes `Constants.Security.SuperUserKey`, see §9.3's remarks on `HttpContentCheckMarkupProvider`. Revisit only once something else in the project needs user-configurable settings too.
+7. Whether the minted preview cookie actually renders a draft's Razor view end-to-end over a real HTTP fetch — **still open.** Proven only as far as Umbraco's own token verification (§9.4) and the provider's own unit tests (§9.3, which mock the HTTP layer entirely); not yet against a real running site. §9.3's "Not yet proven" note covers the same gap for URL resolution itself, which blocks testing this one too.
 
 ## 13. What this thread reused from Core Contract, unchanged
 

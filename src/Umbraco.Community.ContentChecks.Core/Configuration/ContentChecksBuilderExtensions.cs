@@ -76,11 +76,14 @@ public static class ContentChecksBuilderExtensions
         builder.Services.AddSingleton<IContentCheckEffectiveChecksService, ContentCheckEffectiveChecksService>();
         builder.Services.AddSingleton<IContentCheckEvaluationService, ContentCheckEvaluationService>();
 
-        // Groundwork for markup-based checks (docs/markup-checks-exploration.md) -- not a
-        // complete feature yet, just the preview-credential seam a markup provider's default
-        // fetch will need. See IContentCheckPreviewCredentialMinter's remarks for why it's kept
-        // behind its own registration rather than inlined wherever it's eventually consumed.
+        // Groundwork for markup-based checks (docs/markup-checks-exploration.md) -- the
+        // IContentCheck/IMarkupContentCheck contract split itself isn't built yet, but the
+        // provider that will serve it is: resolve the content's URL, mint a preview credential
+        // (see IContentCheckPreviewCredentialMinter's remarks for why that's its own seam), fetch
+        // over HTTP. DI-replaceable -- a site swaps the whole registration for a headless frontend.
         builder.Services.AddSingleton<IContentCheckPreviewCredentialMinter, PreviewTokenCredentialMinter>();
+        builder.Services.AddHttpClient(HttpContentCheckMarkupProvider.HttpClientName);
+        builder.Services.AddSingleton<IContentCheckMarkupProvider, HttpContentCheckMarkupProvider>();
 
         return builder;
     }
