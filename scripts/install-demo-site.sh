@@ -85,6 +85,11 @@ popd > /dev/null
 mkdir -p "$DEMO_SITE_DIR/Properties"
 cp "$SCRIPT_DIR/templates/launchSettings.json" "$DEMO_SITE_DIR/Properties/launchSettings.json"
 
+# Step 3.1.1: Explicit application URL, matching the fixed dev port above. Without this,
+# Umbraco's URL auto-detection leaves it unset outside of a real request, and markup checks
+# (which fetch the rendered page over HTTP) fail with "Connection refused (localhost:80)".
+cp "$SCRIPT_DIR/templates/appsettings.Local.json" "$DEMO_SITE_DIR/appsettings.Local.json"
+
 # Step 3.2: Clean starter kit
 pushd "$DEMO_SITE_DIR" > /dev/null
 if [ -n "$CLEAN_VERSION" ]; then

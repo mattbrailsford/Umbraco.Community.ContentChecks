@@ -61,6 +61,11 @@ Pop-Location
 New-Item -ItemType Directory -Force -Path "$demoSiteDir/Properties" | Out-Null
 Copy-Item "$ScriptDir/templates/launchSettings.json" "$demoSiteDir/Properties/launchSettings.json"
 
+# Explicit application URL, matching the fixed dev port above. Without this, Umbraco's URL
+# auto-detection leaves it unset outside of a real request, and markup checks (which fetch
+# the rendered page over HTTP) fail with "Connection refused (localhost:80)".
+Copy-Item "$ScriptDir/templates/appsettings.Local.json" "$demoSiteDir/appsettings.Local.json"
+
 Push-Location $demoSiteDir
 if ($cleanVersion) {
     Write-Host "Installing Clean starter kit ($cleanVersion)..."
