@@ -1,6 +1,6 @@
 # Content Checks — Markup-Based Checking (Exploration)
 
-**Status:** Exploratory. This captures the full extent of an idea, not a build-ready spec. Some things got settled along the way (marked **Settled**); most of the interesting parts are still genuinely open (marked **Open**) and are recorded as forks with their reasoning, not as decisions. Narrowing to what actually ships is a deliberate, separate, later step — nothing here should be read as "cut" or "deferred" just because it's unresolved. **Real groundwork is now built, ahead of the rest of this (2026-11-13):** the preview-credential seam (§9.4) and the default `IContentCheckMarkupProvider` itself (§9.2, §9.3) — request/response shape, the HTTP-fetch implementation, URL resolution, and the preview cookie all wired together, unit-tested. **Still unbuilt:** the `IMarkupContentCheck`/`MarkupContentCheckBase` check-type contract split (§4) that would actually let someone author a markup check and have it call this provider — today the provider exists with nothing yet calling it. URL resolution's real-site behavior also remains unverified (§9.3's "Not yet proven" note).
+**Status:** Exploratory. This captures the full extent of an idea, not a build-ready spec. Some things got settled along the way (marked **Settled**); most of the interesting parts are still genuinely open (marked **Open**) and are recorded as forks with their reasoning, not as decisions. Narrowing to what actually ships is a deliberate, separate, later step — nothing here should be read as "cut" or "deferred" just because it's unresolved. **Real groundwork is now built, ahead of the rest of this (2026-11-13):** the preview-credential seam (§9.4) and the default `IContentCheckMarkupProvider` itself (§9.2, §9.3) — request/response shape, the HTTP-fetch implementation, URL resolution, and the preview cookie all wired together, unit-tested. **The `IContentCheck`/`IPropertyContentCheck`/`IMarkupContentCheck` contract split (§4) is now design-settled, same day** — a pre-build pass that caught a real bug before any code existed (a markup rule would otherwise wrongly cascade into nested elements, §4.5) — but not yet implemented. URL resolution's real-site behavior also remains unverified (§9.3's "Not yet proven" note).
 
 **Companion to, not part of:** [Overview](overview.md) and its specs ([Core Contract](core-contract-spec.md), [Policy Resolution](policy-resolution-spec.md), [Management API & UI](management-api-ui-spec.md), [Triggers](triggers-spec.md), [AI Integration](ai-integration-spec.md)). Nothing here has been merged into those. If and when parts of this narrow down to something buildable, they get folded in explicitly, not implicitly.
 
@@ -23,12 +23,16 @@ Several real check types are fundamentally about the rendered page, not any one 
 
 A decoupled Umbraco site has no server-side rendering happening on the CMS side at all — Umbraco is a data API; something else entirely (different repo, different framework, maybe different hosting) renders the page. There is no default "ask Umbraco for the markup" that works universally. This has to be a pluggable extension point from day one, not an assumed capability with headless bolted on as an afterthought.
 
-## 4. Contract shape
+## 4. Contract shape — **Settled** (pre-build design pass, 2026-11-13)
 
-**Open, but converging.** `IContentCheckSnapshot` is a property bag; markup is a raw HTML string. These are different input shapes, not the same shape stretched to fit, so property checks and markup checks shouldn't share one `EvaluateAsync` signature. The shape explored:
+Checked directly against the real current source in `src/Umbraco.Community.ContentChecks.Core/Checks/` (`IContentCheck.cs`, `ContentCheckBase.cs`, `ContentCheckRunner.cs`) and `Policies/ContentCheckResolutionService.cs`, not assumed from this doc's own older sketch — the docs in this project have already gone stale twice this session (see §9.2/§9.3's history), so this pass re-verified against real code before settling anything. The user confirmed this contract has never shipped, so the brief was explicit: reshape `IContentCheck` however produces the best design, not whatever avoids a breaking change.
+
+### 4.1 Final interface/base-class shape
+
+`IContentCheckSnapshot` is a property bag; markup is a raw HTML string. These are different input shapes, not the same shape stretched to fit, so property checks and markup checks don't share one `EvaluateAsync` signature:
 
 ```csharp
-// Pure metadata — no EvaluateAsync. What every check declares about itself, regardless of shape.
+// Metadata only. No EvaluateAsync -- a bare IContentCheck can't run anything.
 public interface IContentCheck : IDiscoverable
 {
     string Alias { get; }
@@ -42,26 +46,140 @@ public interface IContentCheck : IDiscoverable
 
 public interface IPropertyContentCheck : IContentCheck
 {
-    Task<ContentCheckResult> EvaluateAsync(ContentCheckContext context, ContentCheckConfig config, CancellationToken ct);
+    Task<ContentCheckResult> EvaluateAsync(ContentCheckContext context, ContentCheckConfig config, CancellationToken cancellationToken);
 }
 
 public interface IMarkupContentCheck : IContentCheck
 {
-    Task<ContentCheckResult> EvaluateAsync(ContentCheckMarkupContext context, ContentCheckConfig config, CancellationToken ct);
+    Task<ContentCheckResult> EvaluateAsync(ContentCheckMarkupContext context, ContentCheckConfig config, CancellationToken cancellationToken);
 }
 ```
 
-This is a **mandatory branch, not an optional add-on** — a meaningfully different relationship than `IFixableContentCheck` (considered and rejected in [Core Contract](core-contract-spec.md)), which would have been additive on top of an always-runnable base. Here, `IContentCheck` alone describes something but can't run anything; you have to be one of the two children to be runnable. Anything that actually executes a check (not just lists it) has to pattern-match which one it's holding.
+This is a **mandatory branch, not an optional add-on** — a meaningfully different relationship than `IFixableContentCheck` (considered and rejected in [Core Contract](core-contract-spec.md)), which would have been additive on top of an always-runnable base. Here, `IContentCheck` alone describes something but can't run anything; you have to be one of the two children to be runnable. Anything that actually executes a check (not just lists it) has to pattern-match which one it's holding (§4.4).
 
-Base classes mirror the split, with a third, more foundational shared piece underneath both — the attribute-reading/lazy-schema/`ResolveConfig` plumbing has nothing to do with property-vs-markup either:
+Base classes mirror the split. Reading the real `ContentCheckBase<TConfig>` shows exactly what the shared, foundational piece is — it's already all in one place today, not vague:
 
 ```csharp
-internal abstract class ContentCheckMetadataBase<TConfig> : IContentCheck { /* attribute + schema + ResolveConfig */ }
-public abstract class PropertyContentCheckBase<TConfig> : ContentCheckMetadataBase<TConfig>, IPropertyContentCheck { ... }
-public abstract class MarkupContentCheckBase<TConfig> : ContentCheckMetadataBase<TConfig>, IMarkupContentCheck { ... }
+// Everything ContentCheckBase<TConfig> does today MINUS the EvaluateAsync proxy: reads
+// [ContentCheck] off the derived type, Alias/Name/Cost/Kind/ConfigType, lazy schema,
+// GetConfigSchema(), ResolveConfig(), CreateDefaultConfig(). Relocated unchanged.
+public abstract class ContentCheckMetadataBase<TConfig> : IContentCheck { /* ... */ }
+
+// What ContentCheckBase<TConfig> is renamed to -- see the naming decision below.
+public abstract class PropertyContentCheckBase<TConfig>
+    : ContentCheckMetadataBase<TConfig>, IPropertyContentCheck
+{
+    // Exactly today's EvaluateAsync(ContentCheckContext, ContentCheckConfig, ct) proxy
+    // + the abstract typed overload, unchanged.
+}
+
+public abstract class MarkupContentCheckBase<TConfig>
+    : ContentCheckMetadataBase<TConfig>, IMarkupContentCheck
+{
+    public Task<ContentCheckResult> EvaluateAsync(
+        ContentCheckMarkupContext context, ContentCheckConfig config, CancellationToken cancellationToken)
+    {
+        if (!context.Markup.Success)
+        {
+            return Task.FromResult(new ContentCheckResult
+            {
+                Status = ContentCheckStatus.NotEvaluated,
+                Message = context.Markup.FailureReason ?? "The page could not be fetched.",
+                NotEvaluatedReason = ContentCheckNotEvaluatedReason.Error,
+            });
+        }
+
+        return EvaluateAsync(context, ResolveConfig(config) ?? CreateDefaultConfig(), cancellationToken);
+    }
+
+    protected abstract Task<ContentCheckResult> EvaluateAsync(
+        ContentCheckMarkupContext context, TConfig config, CancellationToken cancellationToken);
+}
 ```
 
-**Open:** exact members of `ContentCheckMarkupContext` beyond "the HTML" — see §7.
+**The fetch-failure short-circuit lives in `MarkupContentCheckBase`, not in every check.** Mirrors the existing philosophy exactly: `ContentCheckBase<TConfig>`'s whole reason for existing is to stop every check repeating "resolve config, default if missing" ([Core Contract](core-contract-spec.md) §2's note on this exact refactor). A markup check having to repeat "did the fetch even succeed?" at the top of every `EvaluateAsync` is the same category of boilerplate. Centralizing it means a real markup check's body can assume valid HTML, the same way a property check assumes a resolved, defaulted config.
+
+**Naming — rename `ContentCheckBase<TConfig>` to `PropertyContentCheckBase<TConfig>`.** Not required (nothing ships yet, so no forced migration either way), but recommended: with a markup branch existing, `ContentCheckBase` no longer means "the base for any check" — `ContentCheckMetadataBase` does. Keeping the old name on the property branch would read as if it's still the universal one. Touches 3 files, each a one-word change — see §4.6.
+
+### 4.2 Who calls `IContentCheckMarkupProvider`, and when
+
+**Decision: `ContentCheckRunner` calls `IContentCheckMarkupProvider.GetMarkupAsync` directly — individual markup checks never call it.** This is the answer to §11's long-flagged "fetch markup once per run, share across checks" optimization, and it falls out cleanly from how `ContentCheckRunner.RunAsync` is already structured:
+
+- `RunAsync` already distinguishes `Cost.Free` (sequential, always runs) from `Cost.Metered` (concurrent, short-circuited if a mandatory Free rule failed). A markup fetch is exactly the same shape of cost as any other `Metered` check: expensive, worth skipping if short-circuited.
+- Add one field to `RunAsync`: `Lazy<Task<ContentCheckMarkupResult>>? markupFetch`, created only if the request actually contains a markup-check rule, built from `IContentCheckMarkupProvider.GetMarkupAsync(new ContentCheckMarkupRequest { ContentKey = request.Content.Key, Culture = request.Culture, Segment = request.Segment }, cancellationToken)`.
+- Thread it into the per-rule execution path. The fetch is only triggered (`markupFetch.Value` accessed) when the rule about to run is an `IMarkupContentCheck` — never unconditionally.
+- **This preserves the existing short-circuit guarantee for free.** If a mandatory `Free` rule fails, metered rules are never run at all — so a `Metered`-cost markup check's lazy fetch is simply never triggered, exactly like any other skipped `Metered` check today. No special-casing needed; this is why the fetch must be triggered *inside* the per-rule path, not eagerly at the top of `RunAsync`.
+- **`Lazy<Task<T>>`'s default thread-safety mode is the right primitive for the concurrent `Metered` path:** if two markup-check rules race to access `markupFetch.Value` concurrently, only one real fetch happens; both get the same in-flight `Task`.
+
+**New constructor dependency: `ContentCheckRunner` needs `IContentCheckMarkupProvider` injected.** Already registered as a singleton (added alongside the provider itself) — this is a wiring addition, not a new registration. Every existing `ContentCheckRunnerTests` setup needs a `Mock<IContentCheckMarkupProvider>` added — mechanical, not risky, but real; see §4.6.
+
+**Cross-run result caching already works correctly for a markup check with zero changes.** The runner's existing cache key (content stamp + content key + culture/segment + check alias + assembly version + config JSON) is available identically for a markup check, and a cache *hit* returns before ever reaching the markup-check branch — so an unchanged page's markup check doesn't even trigger a fetch on a re-run. The within-one-run `Lazy` sharing above is a *different, complementary* layer: it only matters when at least one markup rule misses the cross-run cache and more than one markup rule needs the same HTML in that run.
+
+**Convention, not enforced:** a markup check should realistically always declare `Cost.Metered` (a network fetch is never actually free), but nothing forces this at the type level — consistent with this project's existing avoidance of compile-time constraints that don't earn their keep (see [Core Contract](core-contract-spec.md)'s note on why `ResolveConfig` avoids a `where TConfig : new()` constraint). Worth a doc comment on `IMarkupContentCheck`, not a runtime check.
+
+### 4.3 `ContentCheckMarkupContext` shape
+
+```csharp
+public sealed class ContentCheckMarkupContext
+{
+    public required IContentCheckSnapshot Content { get; init; }
+    public string? Culture { get; init; }
+    public string? Segment { get; init; }
+    public required ContentCheckMarkupResult Markup { get; init; }
+}
+```
+
+Mirrors `ContentCheckContext` (`Content`/`Culture`/`Segment`) exactly, with `Markup` added to carry the already-fetched `ContentCheckMarkupResult` (§9.2's `Html`/`Url`/`StatusCode`/`Success`/`FailureReason`, unchanged). Giving a markup check `Content` too (not just the raw HTML) means it can report the content's identity the same way a property check can, without parsing it back out of the fetched `Url`.
+
+**Dependency on §4.5 below:** this only works correctly because a markup-check rule will only ever be evaluated against the *root* `IContentCheckSnapshot`, never a nested element instance's — see §4.5's resolution-service fix, which is a prerequisite, not an independent nice-to-have. Without that fix, `Content.Key` here could be a nested block's key, which has no URL of its own and would make the markup request nonsensical.
+
+### 4.4 `ContentCheckRunner` dispatch
+
+```csharp
+result = rule.Check switch
+{
+    IMarkupContentCheck markupCheck => await EvaluateMarkupRuleAsync(markupCheck, rule.Config, request, markupFetch!, cancellationToken),
+    IPropertyContentCheck propertyCheck => await propertyCheck.EvaluateAsync(
+        new ContentCheckContext { Content = request.Content, Culture = request.Culture, Segment = request.Segment },
+        rule.Config, cancellationToken),
+    _ => throw new InvalidOperationException($"Check '{rule.Check.Alias}' is neither a property nor a markup check."),
+};
+```
+
+The `_ =>` branch is unreachable in practice (every real check goes through one of the two base classes), but earns its keep the same way `ContentCheckBase<TConfig>`'s own attribute-presence check does — a clear failure instead of a silent no-op if someone ever implements `IContentCheck` directly, which its own docs already say nobody does.
+
+### 4.5 Policy Resolution — the one real bug this design pass caught
+
+**Finding, not assumed:** `ContentCheckResolutionService`'s rule resolution resolves *every* rule in a policy by alias with **no filtering by check kind at all**, and the method building policy matches calls it identically whether building the root match (no cascading) or a nested element match (cascading). Today, if a policy contains both a property rule and a (not-yet-existing) markup rule, and that policy also matches a nested element type via cascading, the markup rule would be resolved as a *cascading* match at the nested location — directly contradicting §5's already-settled "whole-page-only, no cascading" decision. This isn't hypothetical once `IMarkupContentCheck` exists; it's the actual behavior of the unmodified resolver, caught by reading the real code before writing any of the new contract.
+
+**Fix: the policy-match builder filters out markup-check rules whenever it's building a cascading match.** A minimal, local change — `cascading` is already a parameter at exactly that call site. No separate resolution path is needed for markup checks; they go through the exact same resolution, they just never survive into a cascading match. A markup rule in a policy that matches the *root* content type still resolves normally, which is the only place a markup check should ever appear per §4.2/§4.3's design.
+
+**Secondary, lower-priority finding — the Applicable Checks display.** [Management API & UI](management-api-ui-spec.md)'s "Applicable Checks" service works at the whole-*policy* level for the backoffice display and never resolves individual rules to check instances, so it can't apply the same per-rule filter cheaply. A policy containing both a property rule and a markup rule, matched via cascading, would still display as applying at that nested location — including, misleadingly, its markup rule. This is a display-only inaccuracy (nothing actually runs there, per the real fix above), not a correctness bug, and is a Management API/UI concern to pick up when the UI work for markup checks happens, not a blocker for the contract split itself.
+
+### 4.6 Migration of the two existing checks — mechanical
+
+| File | Change |
+|---|---|
+| `src/Umbraco.Community.ContentChecks.Core/Checks/ContentCheckBase.cs` | Split into `ContentCheckMetadataBase<TConfig>` (everything except the `EvaluateAsync` proxy) + `PropertyContentCheckBase<TConfig>` (the proxy + abstract typed overload), per §4.1. |
+| `src/Umbraco.Community.ContentChecks.Core/Checks/Examples/RequiredPropertyCheck.cs` | `: ContentCheckBase<RequiredPropertyCheckConfig>` → `: PropertyContentCheckBase<RequiredPropertyCheckConfig>`. Nothing else changes — its `EvaluateAsync` override signature is identical. |
+| `src/Umbraco.Community.ContentChecks.AI/Checks/RubricContentCheck.cs` | Same one-word rename. Nothing else changes. |
+| `src/Umbraco.Community.ContentChecks.Core/Checks/ContentCheckCollection.cs` | None — already keyed off `Alias`, available on the metadata-only interface. |
+| `src/Umbraco.Community.ContentChecks.Core/Configuration/ContentChecksBuilderExtensions.cs` | None for discovery (attribute-based discovery still matches both branches via the shared metadata interface) — only the new `ContentCheckRunner` constructor wiring from §4.2. |
+| `src/Umbraco.Community.ContentChecks.Core/Policies/ContentCheckResolutionService.cs` | The policy-match fix from §4.5. |
+| `src/Umbraco.Community.ContentChecks.Core/Checks/ContentCheckRunner.cs` | Constructor gains `IContentCheckMarkupProvider`; the run loop gains the lazy-fetch threading and dispatch switch from §4.2/§4.4. |
+| `tests/Umbraco.Test.ContentChecks.Unit/Checks/FakeContentCheck.cs` | `: IContentCheck` → `: IPropertyContentCheck`. Everything else in the file is already exactly that shape. |
+| `tests/Umbraco.Test.ContentChecks.Unit/Checks/ContentCheckRunnerTests.cs` | Every test's setup needs a `Mock<IContentCheckMarkupProvider>` passed to the runner's constructor. A new `FakeMarkupContentCheck` test double (mirroring `FakeContentCheck`) is also needed to exercise the new dispatch branch and the lazy-fetch-sharing behavior specifically. |
+| `tests/Umbraco.Test.ContentChecks.Unit/Checks/Examples/RequiredPropertyCheckTests.cs`, `RubricContentCheckTests.cs` | Confirmed no change needed — their test-double infrastructure constructs `IContentCheckInfrastructure` only, unaffected by the base-class split. |
+
+No database/persistence migration — `IContentCheck` and its config schema are code-registered, never persisted.
+
+### 4.7 Everything else this split touches — checked, not assumed
+
+- **Guard ([Guard](guard-spec.md)) and Triggers ([Triggers](triggers-spec.md)): confirmed unaffected.** Neither references `IContentCheck` at all — both operate purely on `ContentCheckReportEntry`/`RequirementLevel`/`ContentCheckStatus`. This split doesn't touch either.
+- **`ContentCheckEvaluationService`: confirmed unaffected, zero changes.** It builds one run request per target from that target's resolved policy matches and calls the unchanged runner per target. Because §4.5's fix means a markup rule only ever survives into the *root* target's matches, it rides along in that one request's rule list exactly like any other rule — "whole page only" falls out of §4.5's fix with no changes needed here.
+- **`ContentCheckResult`/`ContentCheckTarget`: confirmed zero changes**, per §6's already-settled decision.
+- **Management API: confirmed zero *required* changes.** The check-type response model is built entirely from the metadata surface (`Alias`/`Name`/`Description`/`Cost`/`Kind`/`ConfigSchema`), all of which stay on the thinned `IContentCheck`.
+- **Open, recommended but not required:** the policy editor's rule picker currently has no way to know "is this check markup-based" to, say, grey it out when authoring a policy on a nested element type (where §4.5 means a markup rule would be accepted but silently never run there). A small flag on the check-type response model would let the UI do this, but it's a Management API/UI-layer decision belonging to whenever that UI work happens, not a blocker for building the contract split itself.
 
 ## 5. Granularity — **Settled**
 
@@ -162,17 +280,20 @@ For Option A (HTTP round-trip) specifically: support an explicit override settin
 
 ## 11. Secondary considerations, named but not developed
 
-- **Fetch-level caching within one run.** If several markup checks run against the same page in one check run, fetching the markup once and sharing it is an obvious optimization. Distinct from [Core Contract](core-contract-spec.md)'s result-cache — that's about not re-running a check whose *verdict* would be unchanged; this is about not re-fetching the same *raw markup* multiple times in one run.
+- ~~**Fetch-level caching within one run.**~~ — **resolved, see §4.2.** The runner fetches markup once per run (lazily, only if a markup rule actually executes) and shares it across every markup check in that run, distinct from [Core Contract](core-contract-spec.md)'s cross-run result-cache.
 
 ## 12. Open questions, consolidated
 
-1. ~~Exact shape of `ContentCheckMarkupContext` / `ContentCheckMarkupRequest`~~ — **resolved and built, see §9.2.** `IMarkupContentCheck`/`MarkupContentCheckBase` (§4's check-type contract split itself) remain unbuilt — this only settled the provider's own request/response shape, not the check-authoring side.
+1. ~~Exact shape of `ContentCheckMarkupContext` / `ContentCheckMarkupRequest`~~ — **resolved and built, see §9.2 and design-settled in §4.3.** `IMarkupContentCheck`/`MarkupContentCheckBase` themselves (§4's check-type contract split) are design-settled (2026-11-13) but not yet implemented — see §4 for the full settled shape, awaiting the actual code change.
 2. ~~HTTP round-trip vs in-process rendering~~ — **resolved: Option A (HTTP), built as `HttpContentCheckMarkupProvider`, see §9.3.** Option B dropped outright, not deferred. The domain-aware-template idea from §9.3's original write-up remains shelved, unaffected by this.
 3. Whether to reuse Umbraco's own application-URL setting directly or define a Content Checks-specific override with fallback (§10) — still open; the built provider has no override point yet at all.
 4. Whether the single-provider registration shape (§9.1) ever needs to become a discovered collection — revisit only if a real multi-frontend/migration case shows up.
 5. Whether provider failure ever needs a more specific `NotEvaluatedReason` than the existing generic `Error` (§9.2) — not needed in practice; `FailureReason`'s free text has covered every case built so far.
 6. ~~How to get a preview-mode render for an already-saved draft with no real editor session~~ — **resolved and built for v18, see §9.4.** Who configures which backoffice user acts as "the judge" is also now settled, pragmatically rather than via a new setting: the built provider hard-codes `Constants.Security.SuperUserKey`, see §9.3's remarks on `HttpContentCheckMarkupProvider`. Revisit only once something else in the project needs user-configurable settings too.
 7. Whether the minted preview cookie actually renders a draft's Razor view end-to-end over a real HTTP fetch — **still open.** Proven only as far as Umbraco's own token verification (§9.4) and the provider's own unit tests (§9.3, which mock the HTTP layer entirely); not yet against a real running site. §9.3's "Not yet proven" note covers the same gap for URL resolution itself, which blocks testing this one too.
+8. ~~Exact shape of the `IContentCheck`/`IPropertyContentCheck`/`IMarkupContentCheck` split, who calls the markup provider, and how Policy Resolution handles a markup rule~~ — **design-settled 2026-11-13, see §4.** A real bug was caught in the process: without §4.5's fix, a markup rule would wrongly resolve as a cascading match into nested elements. Not yet implemented.
+9. The policy editor's rule picker has no way to show "this check only applies to the whole page" (§4.7) — open, Management API/UI concern, not a blocker.
+10. The Applicable Checks display would misleadingly show a markup rule as applying at a cascaded nested location, even though it would never actually run there (§4.5's secondary finding) — open, same UI-layer bucket as #9.
 
 ## 13. What this thread reused from Core Contract, unchanged
 
